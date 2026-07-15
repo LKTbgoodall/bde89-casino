@@ -19,6 +19,15 @@
     -moz-osx-font-smoothing: grayscale;
     margin: 0;
     min-height: 100vh;
+    /* Eliminate 300ms tap delay on mobile */
+    touch-action: manipulation;
+  }
+  
+  /* Make buttons immediately responsive on mobile - no 300ms ghost click delay */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
   }
 }
 

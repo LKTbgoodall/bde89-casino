@@ -41,7 +41,9 @@ function AppProvider({ children }) {
             setPlayer(res.player);
             setGames(res.games);
             setLeaderboard(res.leaderboard);
-            if (window.location.pathname === '/' || window.location.pathname === '/login') {
+            // Only redirect if on login/root page, otherwise stay where we are
+            const currentPath = window.location.pathname;
+            if (currentPath === '/' || currentPath === '/login') {
                navigate(res.player.isAdmin ? '/admin' : '/hub');
             }
           }

@@ -51,7 +51,7 @@ export default function Fifa() {
         <div className="glass-card p-6 text-center">
           <p className="text-zinc-400 mb-4">Aucun match en cours.</p>
           {!inQueue ? (
-            <button onClick={joinQueue} className="bg-rose-600 hover:bg-rose-500 text-white px-6 py-2 rounded-lg font-bold">
+            <button onClick={joinQueue} className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-4 rounded-xl font-bold text-lg touch-manipulation w-full sm:w-auto">
               Rejoindre la file d'attente
             </button>
           ) : (

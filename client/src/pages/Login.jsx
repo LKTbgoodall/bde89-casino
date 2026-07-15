@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../socket';
 import { AppContext } from '../App';
@@ -8,35 +8,56 @@ export default function Login() {
   const [adminCode, setAdminCode] = useState('');
   const [error, setError] = useState('');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { setPlayer, isConnected } = useContext(AppContext);
   const navigate = useNavigate();
+  const pendingLoginRef = useRef(null);
 
+  // If user submitted while disconnected, retry as soon as we connect
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
+    if (isConnected && pendingLoginRef.current) {
+      const { name, adminCode } = pendingLoginRef.current;
+      pendingLoginRef.current = null;
+      doLogin(name, adminCode);
     }
-  }, []);
+  }, [isConnected]);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (!name.trim()) return setError('Le prénom est requis');
-    if (!isConnected) return setError('Connexion au serveur en cours...');
-
-    socket.emit('join', { name: name.trim(), adminCode: adminCode.trim() }, (res) => {
+  const doLogin = (nameVal, adminCodeVal) => {
+    setLoading(true);
+    setError('');
+    socket.emit('join', { name: nameVal.trim(), adminCode: adminCodeVal.trim() }, (res) => {
+      setLoading(false);
       if (res.success) {
         setPlayer(res.player);
         localStorage.setItem('techcasino_name', res.player.name);
         if (res.player.isAdmin) {
-          localStorage.setItem('techcasino_adminCode', adminCode.trim());
+          localStorage.setItem('techcasino_adminCode', adminCodeVal.trim());
           navigate('/admin');
         } else {
           navigate('/hub');
         }
       } else {
-        setError(res.error);
+        setError(res.error || 'Erreur inconnue');
       }
     });
   };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return setError('Le prénom est requis');
+
+    if (!isConnected) {
+      // Queue the login attempt — will fire as soon as server responds
+      pendingLoginRef.current = { name, adminCode };
+      setLoading(true);
+      setError('');
+      return;
+    }
+
+    doLogin(name, adminCode);
+  };
+
+  const isWaiting = loading || (!isConnected && pendingLoginRef.current);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
@@ -72,20 +93,42 @@ export default function Login() {
                 onChange={e => setAdminCode(e.target.value)}
                 className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-500 placeholder-zinc-600"
                 placeholder="Réservé au BDE"
-                autoFocus
               />
             </div>
           )}
 
           {error && <div className="text-rose-500 text-sm bg-rose-500/10 p-3 rounded-lg border border-rose-500/20">{error}</div>}
-          {!isConnected && <div className="text-amber-500 text-sm animate-pulse text-center">Connexion au serveur...</div>}
+
+          {/* Status indicator */}
+          <div className={`flex items-center gap-2 text-xs ${isConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <span className={`w-2 h-2 rounded-full inline-block ${isConnected ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
+            {isConnected ? 'Serveur connecté' : 'Connexion au serveur en cours...'}
+          </div>
 
           <button 
             type="submit" 
-            disabled={!isConnected}
-            className="mt-4 w-full bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-rose-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+            disabled={loading}
+            className="mt-2 w-full bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-rose-500/20 transition-all active:scale-[0.97] disabled:opacity-70 text-lg touch-manipulation"
           >
-            Entrer dans le Casino
+            {loading && !isConnected ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                Réveil du serveur...
+              </span>
+            ) : loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                Connexion...
+              </span>
+            ) : (
+              'Entrer dans le Casino'
+            )}
           </button>
         </form>
       </div>

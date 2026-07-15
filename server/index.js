@@ -17,6 +17,9 @@ const undercoverHandler = require('./games/undercover');
 const app = express();
 app.use(cors());
 
+// Health check endpoint (used by keep-alive ping)
+app.get('/health', (req, res) => res.json({ ok: true, uptime: process.uptime() }));
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -116,4 +119,12 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+
+  // Self-ping every 14 minutes to prevent Render free tier from sleeping
+  const SELF_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  setInterval(() => {
+    fetch(`${SELF_URL}/health`)
+      .then(() => console.log('[keep-alive] ping ok'))
+      .catch(err => console.warn('[keep-alive] ping failed:', err.message));
+  }, 14 * 60 * 1000);
 });

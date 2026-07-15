@@ -88,8 +88,8 @@ export default function BabyFoot() {
           </div>
           
           {bf.status === 'waiting' && !isPlaying && bf.left.length < 4 && (
-            <button onClick={() => joinTeam('left')} className="w-full mt-4 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 py-2 rounded border border-blue-500/50 transition-colors">
-              Rejoindre
+            <button onClick={() => joinTeam('left')} className="w-full mt-4 bg-blue-600/20 hover:bg-blue-600/40 active:bg-blue-600/60 text-blue-300 py-4 rounded-xl border border-blue-500/50 transition-colors font-bold text-base touch-manipulation">
+              Rejoindre l'équipe bleue
             </button>
           )}
         </div>
@@ -109,8 +109,8 @@ export default function BabyFoot() {
           </div>
 
           {bf.status === 'waiting' && !isPlaying && bf.right.length < 4 && (
-            <button onClick={() => joinTeam('right')} className="w-full mt-4 bg-red-600/20 hover:bg-red-600/40 text-red-300 py-2 rounded border border-red-500/50 transition-colors">
-              Rejoindre
+            <button onClick={() => joinTeam('right')} className="w-full mt-4 bg-red-600/20 hover:bg-red-600/40 active:bg-red-600/60 text-red-300 py-4 rounded-xl border border-red-500/50 transition-colors font-bold text-base touch-manipulation">
+              Rejoindre l'équipe rouge
             </button>
           )}
         </div>

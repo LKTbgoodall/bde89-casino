@@ -53,7 +53,7 @@ export default function Undercover() {
            <p className="text-sm text-zinc-400 mb-6">Mise fixe : 10 🪙 par joueur (prélevée au lancement).</p>
            
            {!amIPlaying ? (
-             <button onClick={joinGame} className="bg-rose-600 hover:bg-rose-500 font-bold px-8 py-3 rounded-xl transition-all">
+             <button onClick={joinGame} className="bg-rose-600 hover:bg-rose-500 active:bg-rose-400 font-bold px-8 py-4 rounded-xl transition-all text-lg touch-manipulation w-full sm:w-auto">
                S'inscrire à la table
              </button>
            ) : (
