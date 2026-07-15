@@ -102,8 +102,8 @@ class Store {
     this.games.fifa.queue = this.games.fifa.queue.filter(p => p.id !== playerId);
     
     // Babyfoot
-    this.games.babyfoot.left = this.games.babyfoot.left.filter(id => id !== playerId);
-    this.games.babyfoot.right = this.games.babyfoot.right.filter(id => id !== playerId);
+    this.games.babyfoot.left = this.games.babyfoot.left.filter(p => p.id !== playerId);
+    this.games.babyfoot.right = this.games.babyfoot.right.filter(p => p.id !== playerId);
     
     // Undercover / Imposteur
     Object.keys(this.games).forEach(key => {
