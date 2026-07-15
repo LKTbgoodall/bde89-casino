@@ -1,18 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { socket } from './socket';
+import { supabase } from './lib/supabase';
 
-// Components
 import Navbar from './components/Navbar';
-import NeedAdmin from './components/NeedAdmin';
-
-// Pages
 import Login from './pages/Login';
 import Hub from './pages/Hub';
 import Admin from './pages/Admin';
-import Screen from './pages/Screen';
-
-// Game Pages
 import Fifa from './pages/games/Fifa';
 import BabyFoot from './pages/games/BabyFoot';
 import Bluff from './pages/games/Bluff';
@@ -21,80 +14,179 @@ import QuiDansLaSalle from './pages/games/QuiDansLaSalle';
 import Undercover from './pages/games/Undercover';
 
 export const AppContext = createContext();
+export const ADMIN_CODE = 'GA-Dripbde-EBS89FHL';
+
+const GAME_IDS = ['fifa','babyfoot','bluff1','bluff2','blindtest','quidanslasalle','imposteur1','imposteur2'];
 
 function AppProvider({ children }) {
   const [player, setPlayer] = useState(null);
   const [games, setGames] = useState({});
   const [leaderboard, setLeaderboard] = useState([]);
-  const [isConnected, setIsConnected] = useState(false);
   const navigate = useNavigate();
 
+  // --- Session restore on page reload ---
   useEffect(() => {
-    socket.on('connect', () => {
-      setIsConnected(true);
-      // Auto-reconnect with local storage if possible
-      const savedName = localStorage.getItem('techcasino_name');
-      const savedAdminCode = localStorage.getItem('techcasino_adminCode');
-      if (savedName && !player) {
-        socket.emit('join', { name: savedName, adminCode: savedAdminCode }, (res) => {
-          if (res.success) {
-            setPlayer(res.player);
-            setGames(res.games);
-            setLeaderboard(res.leaderboard);
-            // Only redirect if on login/root page, otherwise stay where we are
-            const currentPath = window.location.pathname;
-            if (currentPath === '/' || currentPath === '/login') {
-               navigate(res.player.isAdmin ? '/admin' : '/hub');
-            }
+    const sessionId = localStorage.getItem('casino_session');
+    if (!sessionId) return;
+    supabase
+      .from('sessions')
+      .select('players(*)')
+      .eq('id', sessionId)
+      .single()
+      .then(({ data }) => {
+        if (data?.players) {
+          setPlayer(data.players);
+          const p = window.location.pathname;
+          if (p === '/' || p === '/login') {
+            navigate(data.players.is_admin ? '/admin' : '/hub');
           }
-        });
+        } else {
+          localStorage.removeItem('casino_session');
+        }
+      });
+  }, []);
+
+  // --- Subscribe to OWN player updates ---
+  useEffect(() => {
+    if (!player?.id) return;
+    const ch = supabase
+      .channel('my-player-' + player.id)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'players',
+        filter: `id=eq.${player.id}`
+      }, ({ new: p }) => setPlayer(p))
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [player?.id]);
+
+  // --- Subscribe to all game states ---
+  useEffect(() => {
+    // Initial load
+    supabase.from('game_states').select('game_id,state').then(({ data }) => {
+      if (data) {
+        const map = {};
+        data.forEach(r => { map[r.game_id] = r.state; });
+        setGames(map);
       }
     });
 
-    socket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+    const ch = supabase
+      .channel('game-states-all')
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'game_states'
+      }, ({ new: row }) => {
+        setGames(prev => ({ ...prev, [row.game_id]: row.state }));
+      })
+      .subscribe();
 
-    socket.on('player_update', (newPlayerState) => {
-      setPlayer(newPlayerState);
-    });
+    return () => supabase.removeChannel(ch);
+  }, []);
 
-    socket.on('game_update', ({ game, state }) => {
-      setGames(prev => ({ ...prev, [game]: state }));
-    });
+  // --- Leaderboard ---
+  useEffect(() => {
+    const loadLB = () =>
+      supabase.from('players')
+        .select('id,name,tokens')
+        .eq('is_admin', false)
+        .order('tokens', { ascending: false })
+        .limit(30)
+        .then(({ data }) => { if (data) setLeaderboard(data); });
 
-    socket.on('game_update_spectator', ({ game, state }) => {
-      setGames(prev => ({ ...prev, [game]: state }));
-    });
+    loadLB();
+    const ch = supabase
+      .channel('lb')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, loadLB)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
 
-    socket.on('leaderboard_update', (newBoard) => {
-      setLeaderboard(newBoard);
-    });
+  // --- Login helper ---
+  const login = async (name, adminCode) => {
+    const isAdmin = adminCode === ADMIN_CODE;
 
-    return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('player_update');
-      socket.off('game_update');
-      socket.off('game_update_spectator');
-      socket.off('leaderboard_update');
-    };
-  }, [player, navigate]);
+    // Upsert player by name
+    let { data: existing } = await supabase
+      .from('players').select('*').eq('name', name).maybeSingle();
+
+    let playerData;
+    if (existing) {
+      if (isAdmin) {
+        await supabase.from('players').update({ is_admin: true }).eq('id', existing.id);
+        existing.is_admin = true;
+      }
+      playerData = existing;
+    } else {
+      const { data, error } = await supabase
+        .from('players')
+        .insert({ name, is_admin: isAdmin })
+        .select().single();
+      if (error) throw new Error(error.message);
+      playerData = data;
+    }
+
+    // Create session
+    const { data: session, error: sErr } = await supabase
+      .from('sessions').insert({ player_id: playerData.id }).select().single();
+    if (sErr) throw new Error(sErr.message);
+
+    localStorage.setItem('casino_session', session.id);
+    setPlayer(playerData);
+    return playerData;
+  };
+
+  // --- Update game state helper ---
+  const updateGame = async (gameId, newState) => {
+    // Optimistic update
+    setGames(prev => ({ ...prev, [gameId]: newState }));
+    await supabase.from('game_states')
+      .update({ state: newState, updated_at: new Date().toISOString() })
+      .eq('game_id', gameId);
+  };
+
+  // --- Remove player from all physical queues (one game at a time) ---
+  const leaveAllQueues = async () => {
+    if (!player) return;
+    for (const gId of ['fifa', 'babyfoot', 'imposteur1', 'imposteur2']) {
+      const { data } = await supabase.from('game_states').select('state').eq('game_id', gId).single();
+      if (!data) continue;
+      let s = data.state;
+      let changed = false;
+
+      if (gId === 'fifa') {
+        const before = s.queue.length;
+        s.queue = s.queue.filter(p => p.id !== player.id);
+        changed = s.queue.length !== before;
+      } else if (gId === 'babyfoot') {
+        const before = s.left.length + s.right.length;
+        if (s.status === 'waiting') {
+          s.left = s.left.filter(p => p.id !== player.id);
+          s.right = s.right.filter(p => p.id !== player.id);
+          changed = (s.left.length + s.right.length) !== before;
+        }
+      } else {
+        const before = s.players.length;
+        if (s.state === 'waiting') {
+          s.players = s.players.filter(p => p.id !== player.id);
+          changed = s.players.length !== before;
+        }
+      }
+      if (changed) await updateGame(gId, s);
+    }
+  };
 
   return (
-    <AppContext.Provider value={{ player, setPlayer, games, leaderboard, isConnected }}>
-      <div className="bg-zinc-900 min-h-screen text-white font-sans selection:bg-rose-500 selection:text-white">
+    <AppContext.Provider value={{ player, setPlayer, games, leaderboard, login, updateGame, leaveAllQueues }}>
+      <div className="bg-zinc-900 min-h-screen text-white font-sans">
         {player && <Navbar />}
         <main className="container mx-auto px-4 py-6 pb-24 max-w-lg md:max-w-4xl">
           {children}
         </main>
-        {player && <NeedAdmin />}
       </div>
     </AppContext.Provider>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppProvider>
@@ -103,8 +195,6 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/hub" element={<Hub />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path="/screen" element={<Screen />} />
-          
           <Route path="/games/fifa" element={<Fifa />} />
           <Route path="/games/babyfoot" element={<BabyFoot />} />
           <Route path="/games/bluff/:id" element={<Bluff />} />
@@ -116,5 +206,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-export default App;

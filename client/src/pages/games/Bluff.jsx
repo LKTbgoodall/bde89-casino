@@ -1,130 +1,90 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import { AppContext } from '../../App';
-import { socket } from '../../socket';
+import { supabase } from '../../lib/supabase';
 
 export default function Bluff() {
-  const { id: tableId } = useParams(); // bluff1 or bluff2
-  const { player, games } = useContext(AppContext);
-  const [betAmount, setBetAmount] = useState(2);
-  const [choice, setChoice] = useState('A');
+  const { id: tableId } = useParams();
+  const { player, games, updateGame } = useContext(AppContext);
+  const [betAmount, setBetAmount] = React.useState(5);
 
-  const game = games[tableId] || { active: null, state: 'waiting', bets: [], pool: 0, truth: null };
-  const isActive = game.active && game.active.id === player.id;
-  const hasBet = game.bets?.find(b => b.id === player.id);
+  const b = games[tableId] ?? { state: 'waiting', active: null, bets: [], pool: 0 };
+  const myBet = b.bets?.find(bet => bet.playerId === player.id);
 
-  const setTruth = () => {
-    socket.emit('bluff_set_truth', { tableId, choice }, res => {
-      if (!res.success) alert(res.error);
-    });
-  };
-
-  const placeBet = () => {
-    socket.emit('bluff_bet', { tableId, amount: parseInt(betAmount), choice }, res => {
-      if (!res.success) alert(res.error);
-    });
+  const placeBet = async (isTruth) => {
+    const amt = parseInt(betAmount);
+    if (amt < 2 || amt > 15) return alert('Mise entre 2 et 15 🪙');
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', tableId).single();
+    const s = data.state;
+    if (s.bets?.find(b => b.playerId === player.id)) return;
+    s.bets = s.bets ?? [];
+    s.bets.push({ playerId: player.id, playerName: player.name, isTruth, amount: amt });
+    s.pool = (s.pool ?? 0) + amt;
+    await supabase.from('players').update({ tokens: player.tokens - amt }).eq('id', player.id);
+    await updateGame(tableId, s);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <h1 className="text-3xl font-bold mb-2">🃏 1 Vérité 2 Bluffs {tableId === 'bluff1' ? '(T1)' : '(T2)'}</h1>
+      <h1 className="text-3xl font-bold text-center">🃏 1 Vérité 2 Bluffs</h1>
+      <p className="text-center text-zinc-400 text-sm">Table {tableId === 'bluff1' ? '1' : '2'}</p>
 
-      {game.state === 'waiting' && (
-        <div className="glass p-8 text-center text-zinc-400">
-          En attente qu'un admin sélectionne le prochain joueur...
+      <div className="glass-card p-5 text-center">
+        <div className="text-xs text-zinc-400 uppercase tracking-widest font-bold mb-2">Cagnotte</div>
+        <div className="text-4xl font-mono font-black text-amber-400">{b.pool ?? 0} 🪙</div>
+      </div>
+
+      {b.state === 'waiting' && (
+        <div className="glass p-8 text-center text-zinc-400 rounded-xl">
+          <div className="text-4xl mb-4">😴</div>
+          <p>En attente du prochain round…</p>
+          <p className="text-sm mt-2 text-zinc-500">L'animateur désigne quelqu'un bientôt !</p>
         </div>
       )}
 
-      {game.state === 'choosing_truth' && (
-        <div className="glass-card p-6 text-center border border-indigo-500/30 shadow-lg shadow-indigo-500/10">
-          <h2 className="text-2xl font-bold text-indigo-400 mb-2">Joueur sélectionné : {game.active.name}</h2>
-          {isActive ? (
-            <div className="mt-6">
-               <p className="mb-4 text-zinc-300">C'est à toi ! Sélectionne la lettre qui contient ta VRAIE anecdote (caché des autres).</p>
-               <div className="flex gap-4 justify-center mb-6">
-                 {['A', 'B', 'C'].map(letter => (
-                   <button 
-                     key={letter}
-                     onClick={() => setChoice(letter)}
-                     className={`w-16 h-16 rounded-xl text-2xl font-black transition-all ${choice === letter ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-600/50' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}
-                   >
-                     {letter}
-                   </button>
-                 ))}
-               </div>
-               <button onClick={setTruth} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-emerald-500/30">
-                 Confirmer ma Vérité
-               </button>
-            </div>
-          ) : (
-            <p className="mt-4 text-amber-500 animate-pulse">Le joueur choisit sa vérité...</p>
-          )}
-        </div>
-      )}
-
-      {game.state === 'betting' && (
-        <div className="glass-card p-6">
+      {b.state === 'betting' && b.active && (
+        <div className="glass-card p-6 border-t-4 border-amber-500">
           <div className="text-center mb-6">
-            <h2 className="text-xl font-bold text-indigo-400 mb-1">{game.active.name} raconte ses anecdotes !</h2>
-            <p className="text-sm text-zinc-400">Écoute attentivement et mise sur la vérité.</p>
+            <span className="text-zinc-400 text-sm block mb-2">C'est à</span>
+            <span className="text-3xl font-black text-amber-400">{b.active.name}</span>
+            <span className="text-zinc-400 text-sm block mt-1">de raconter ses 3 histoires !</span>
           </div>
 
-          <div className="flex justify-center gap-6 mb-8">
-             <div className="text-center">
-                <span className="block text-xs uppercase text-zinc-500 font-bold mb-1">Cagnotte</span>
-                <span className="text-3xl font-mono text-amber-400 font-black">{game.pool} 🪙</span>
-             </div>
-          </div>
-
-          {!isActive ? (
-             hasBet ? (
-               <div className="text-center p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-lg text-emerald-400 font-bold">
-                 Pari enregistré ({hasBet.bet} 🪙 sur {hasBet.choice})
-               </div>
-             ) : (
-               <div className="space-y-6">
-                 <div className="flex gap-4 justify-center">
-                   {['A', 'B', 'C'].map(letter => (
-                     <button 
-                       key={letter}
-                       onClick={() => setChoice(letter)}
-                       className={`w-16 h-16 rounded-xl text-2xl font-black transition-all ${choice === letter ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/50 scale-105' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                     >
-                       {letter}
-                     </button>
-                   ))}
-                 </div>
-                 
-                 <div className="flex flex-col items-center gap-2">
-                    <label className="text-sm text-zinc-400">Mise (2-15 🪙)</label>
-                    <div className="flex gap-2">
-                       <input 
-                         type="number" min="2" max="15" 
-                         value={betAmount} onChange={(e) => setBetAmount(e.target.value)}
-                         className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 w-24 text-center font-mono text-lg"
-                       />
-                       <button onClick={placeBet} className="bg-gradient-to-r from-rose-600 to-fuchsia-600 font-bold px-6 rounded-lg text-white">
-                         Parier
-                       </button>
-                    </div>
-                 </div>
-               </div>
-             )
+          {!myBet ? (
+            <>
+              <p className="text-center text-zinc-400 mb-5 text-sm">
+                Écoute les 3 histoires, puis mise sur celle que tu penses être <strong className="text-white">vraie</strong>.
+              </p>
+              <div className="flex gap-3 mb-5">
+                {[2, 5, 10, 15].map(v => (
+                  <button key={v} onClick={() => setBetAmount(v)} className={`flex-1 py-3 rounded-xl border font-bold text-sm touch-manipulation ${betAmount === v ? 'bg-amber-600/30 border-amber-500 text-amber-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>{v}🪙</button>
+                ))}
+              </div>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => placeBet(true)} className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 py-4 rounded-xl font-bold text-lg touch-manipulation">
+                  ✅ Miser {betAmount}🪙 sur la Vérité
+                </button>
+                <button onClick={() => placeBet(false)} className="w-full bg-zinc-600 hover:bg-zinc-500 py-3 rounded-xl font-bold text-base touch-manipulation">
+                  🤡 Miser {betAmount}🪙 sur un Bluff
+                </button>
+              </div>
+            </>
           ) : (
-             <div className="text-center p-4 bg-zinc-800/50 rounded-lg text-zinc-400 italic">
-               Les joueurs sont en train de parier. Dis-leur quand fermer les votes (via l'admin).
-             </div>
+            <div className="text-center bg-zinc-800/80 p-6 rounded-xl border border-zinc-700">
+              <div className="text-2xl mb-2">{myBet.isTruth ? '✅' : '🤡'}</div>
+              <p className="font-bold text-zinc-200">Tu as misé <span className="text-amber-400">{myBet.amount}🪙</span> sur {myBet.isTruth ? 'la Vérité' : 'un Bluff'}</p>
+              <p className="text-zinc-500 text-sm mt-3 animate-pulse">En attente des autres…</p>
+              <div className="mt-3 text-xs text-zinc-400">{b.bets?.length} pari(s) enregistré(s)</div>
+            </div>
           )}
         </div>
       )}
 
-      {game.state === 'revealing' && (
-        <div className="glass-card p-10 text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-emerald-500/20 animate-pulse"></div>
-          <h2 className="text-2xl font-bold mb-4 relative z-10">La vérité était...</h2>
-          <div className="text-7xl font-black text-white relative z-10 drop-shadow-[0_0_15px_rgba(16,185,129,0.8)]">
-            {game.truth}
-          </div>
+      {b.state === 'revealed' && (
+        <div className="glass-card p-8 text-center border-2 border-emerald-500/50">
+          <h2 className="text-2xl font-black mb-4">Révélation !</h2>
+          <p className="text-zinc-400 text-sm">Les gagnants ont reçu leurs jetons.</p>
+          <div className="mt-4 text-xs text-zinc-500">Prochain round bientôt…</div>
         </div>
       )}
     </div>
