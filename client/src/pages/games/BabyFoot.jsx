@@ -54,7 +54,7 @@ export default function BabyFoot() {
         <div className="bg-emerald-500/10 border border-emerald-500/50 p-4 rounded-xl text-center mb-6">
           <h3 className="font-bold text-emerald-400 mb-2 animate-pulse">Match en cours !</h3>
           <p className="text-sm text-zinc-300 mb-4">Une fois terminé, votez pour l'équipe gagnante (6 votes identiques requis).</p>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
              <button onClick={() => submitVote('left')} className="flex-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 py-3 rounded-lg border border-blue-500/50">
                Victoire Équipe Bleue
              </button>
@@ -72,7 +72,7 @@ export default function BabyFoot() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* LEFT TEAM */}
         <div className="glass-card p-4 border-t-4 border-t-blue-500 relative">
           <h2 className="font-bold text-blue-400 mb-4 text-center">Équipe Bleue ({bf.left.length}/4)</h2>

@@ -114,7 +114,7 @@ export default function Fifa() {
               <p className="text-sm text-zinc-400 mb-6">Jouez votre match de 4 min. Une fois terminé, déclarez le gagnant.</p>
               
               {((isPlayer1 && !current.p1Vote) || (isPlayer2 && !current.p2Vote)) ? (
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <button onClick={() => submitScore(current.player1)} className="flex-1 bg-blue-600/20 border border-blue-500 hover:bg-blue-600/40 py-2 rounded text-blue-400 font-bold">
                     Victoire {current.p1Name}
                   </button>
@@ -136,7 +136,7 @@ export default function Fifa() {
                 <div className="text-emerald-400 text-sm">Pari enregistré !</div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button 
                       onClick={() => setSpectatorBetOn(current.player1)}
                       className={`flex-1 py-2 rounded text-sm font-bold border transition-colors ${spectatorBetOn === current.player1 ? 'bg-blue-600/30 border-blue-500 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}

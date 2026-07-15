@@ -96,6 +96,25 @@ class Store {
       .sort((a, b) => b.tokens - a.tokens)
       .map(p => ({ id: p.id, name: p.name, tokens: p.tokens }));
   }
+
+  leaveAllGames(playerId) {
+    // FIFA
+    this.games.fifa.queue = this.games.fifa.queue.filter(p => p.id !== playerId);
+    
+    // Babyfoot
+    this.games.babyfoot.left = this.games.babyfoot.left.filter(id => id !== playerId);
+    this.games.babyfoot.right = this.games.babyfoot.right.filter(id => id !== playerId);
+    
+    // Undercover / Imposteur
+    Object.keys(this.games).forEach(key => {
+      if (key.startsWith('imposteur')) {
+        this.games[key].players = this.games[key].players.filter(p => p.id !== playerId);
+      }
+    });
+
+    // We do NOT remove from active matches if they are already playing (fifa match, etc.) 
+    // to avoid breaking the match, but this prevents multi-queuing.
+  }
 }
 
 module.exports = new Store();

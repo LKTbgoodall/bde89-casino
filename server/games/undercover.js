@@ -58,10 +58,13 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
   // Players join table
   socket.on('u_join', ({ tableId }, callback) => {
     const p = store.getPlayerBySocket(socket.id);
+    if (!p) return;
+
+    store.leaveAllGames(p.id);
+
     initUState(tableId);
     const game = store.games[tableId];
 
-    if (!p) return;
     if (game.state !== 'waiting') return callback({ success: false, error: 'Game in progress' });
     if (game.players.find(x => x.id === p.id)) return callback({ success: false, error: 'Already joined' });
 

@@ -8,6 +8,9 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     const p = store.getPlayerBySocket(socket.id);
     if (!p) return;
     
+    // Enforce one game at a time for physical queues
+    store.leaveAllGames(p.id);
+
     // Check if already in queue or playing
     const fifa = store.games.fifa;
     if (fifa.queue.find(x => x.id === p.id)) return callback({ success: false, error: 'Already in queue' });

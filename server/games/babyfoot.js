@@ -5,9 +5,11 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
 
   socket.on('babyfoot_join', ({ side }, callback) => {
     const p = store.getPlayerBySocket(socket.id);
-    const bf = store.games.babyfoot;
     if (!p) return;
 
+    store.leaveAllGames(p.id);
+
+    const bf = store.games.babyfoot;
     if (bf.status !== 'waiting') return callback({ success: false, error: 'Match already in progress' });
     if (bf.left.find(x => x.id === p.id) || bf.right.find(x => x.id === p.id)) {
       return callback({ success: false, error: 'Already joined' });
