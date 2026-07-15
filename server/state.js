@@ -97,18 +97,21 @@ class Store {
       .map(p => ({ id: p.id, name: p.name, tokens: p.tokens }));
   }
 
-  leaveAllGames(playerId) {
+  leaveAllGames(playerId, io) {
     // FIFA
     this.games.fifa.queue = this.games.fifa.queue.filter(p => p.id !== playerId);
+    if (io) io.emit('game_update', { game: 'fifa', state: this.games.fifa });
     
     // Babyfoot
     this.games.babyfoot.left = this.games.babyfoot.left.filter(p => p.id !== playerId);
     this.games.babyfoot.right = this.games.babyfoot.right.filter(p => p.id !== playerId);
+    if (io) io.emit('game_update', { game: 'babyfoot', state: this.games.babyfoot });
     
     // Undercover / Imposteur
     Object.keys(this.games).forEach(key => {
       if (key.startsWith('imposteur')) {
         this.games[key].players = this.games[key].players.filter(p => p.id !== playerId);
+        if (io) io.emit('game_update', { game: key, state: this.games[key] });
       }
     });
 

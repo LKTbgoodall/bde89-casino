@@ -60,7 +60,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     const p = store.getPlayerBySocket(socket.id);
     if (!p) return;
 
-    store.leaveAllGames(p.id);
+    store.leaveAllGames(p.id, io);
 
     initUState(tableId);
     const game = store.games[tableId];

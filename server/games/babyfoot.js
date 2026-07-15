@@ -7,7 +7,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     const p = store.getPlayerBySocket(socket.id);
     if (!p) return;
 
-    store.leaveAllGames(p.id);
+    store.leaveAllGames(p.id, io);
 
     const bf = store.games.babyfoot;
     if (bf.status !== 'waiting') return callback({ success: false, error: 'Match already in progress' });

@@ -9,7 +9,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     if (!p) return;
     
     // Enforce one game at a time for physical queues
-    store.leaveAllGames(p.id);
+    store.leaveAllGames(p.id, io);
 
     // Check if already in queue or playing
     const fifa = store.games.fifa;
