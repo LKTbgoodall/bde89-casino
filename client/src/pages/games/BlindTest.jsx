@@ -39,10 +39,63 @@ export default function BlindTest() {
     await updateGame('blindtest', s);
   };
 
+  const getThemes = () => {
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+  
+    const schedule = [
+      { start: 14 * 60, end: 14 * 60 + 30, name: "Années 2000", timeStr: "14h00" },
+      { start: 14 * 60 + 30, end: 15 * 60, name: "Rap FR", timeStr: "14h30" },
+      { start: 15 * 60, end: 15 * 60 + 30, name: "Génériques de séries", timeStr: "15h00" },
+      { start: 15 * 60 + 30, end: 16 * 60, name: "Anime", timeStr: "15h30" },
+      { start: 16 * 60, end: 16 * 60 + 30, name: "Disney / Pixar", timeStr: "16h00" },
+    ];
+  
+    let current = null;
+    let next = null;
+  
+    for (let i = 0; i < schedule.length; i++) {
+      if (minutes >= schedule[i].start && minutes < schedule[i].end) {
+        current = schedule[i];
+        next = schedule[i + 1] || null;
+        break;
+      }
+    }
+  
+    if (!current) {
+      for (let i = 0; i < schedule.length; i++) {
+        if (minutes < schedule[i].start) {
+          next = schedule[i];
+          break;
+        }
+      }
+      if (!next) next = schedule[0];
+    }
+  
+    return { current, next };
+  };
+
+  const { current: currentTheme, next: nextTheme } = getThemes();
+
   return (
     <div className="space-y-6 animate-in fade-in">
       <h1 className="text-3xl font-bold text-center text-fuchsia-400">🎵 Blind Test</h1>
-      <p className="text-center text-zinc-400 text-sm mt-1 font-medium bg-fuchsia-500/10 border border-fuchsia-500/20 py-1.5 px-3 rounded-full w-max mx-auto">Nouveau thème toutes les 30 minutes !</p>
+      
+      <div className="bg-fuchsia-900/20 border border-fuchsia-500/20 rounded-xl p-4 text-center">
+        {currentTheme ? (
+          <>
+            <div className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-1">Thème Actuel</div>
+            <div className="text-xl font-bold text-white mb-2">{currentTheme.name}</div>
+          </>
+        ) : (
+          <div className="text-sm text-zinc-400 italic mb-2">Pause / Hors planning</div>
+        )}
+        {nextTheme && (
+          <div className="text-xs text-fuchsia-300">
+            Prochain thème : {nextTheme.name} (à {nextTheme.timeStr})
+          </div>
+        )}
+      </div>
 
       <div className="glass-card p-5 text-center">
         <div className="text-xs text-zinc-400 uppercase tracking-widest font-bold mb-2">Cagnotte</div>
