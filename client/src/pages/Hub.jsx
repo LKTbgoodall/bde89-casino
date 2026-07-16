@@ -18,6 +18,42 @@ export default function Hub() {
   const [selectedGame, setSelectedGame] = useState(null);
   const navigate = useNavigate();
 
+  const getThemes = () => {
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+  
+    const schedule = [
+      { start: 14 * 60, end: 14 * 60 + 30, name: "Années 2000", timeStr: "14h00" },
+      { start: 14 * 60 + 30, end: 15 * 60, name: "Rap FR", timeStr: "14h30" },
+      { start: 15 * 60, end: 15 * 60 + 30, name: "Génériques de séries", timeStr: "15h00" },
+      { start: 15 * 60 + 30, end: 16 * 60, name: "Anime", timeStr: "15h30" },
+      { start: 16 * 60, end: 16 * 60 + 30, name: "Disney / Pixar", timeStr: "16h00" },
+    ];
+  
+    let current = null;
+    let next = null;
+  
+    for (let i = 0; i < schedule.length; i++) {
+      if (minutes >= schedule[i].start && minutes < schedule[i].end) {
+        current = schedule[i];
+        next = schedule[i + 1] || null;
+        break;
+      }
+    }
+  
+    if (!current) {
+      for (let i = 0; i < schedule.length; i++) {
+        if (minutes < schedule[i].start) {
+          next = schedule[i];
+          break;
+        }
+      }
+      if (!next) next = schedule[0];
+    }
+  
+    return { current, next };
+  };
+
   const getCount = (id) => {
     const g = games[id];
     if (!g) return 0;
@@ -79,7 +115,19 @@ export default function Hub() {
               
               <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700">
                 <div className="text-xs text-zinc-400 uppercase font-bold mb-1">📖 Règles du jeu</div>
-                <div className="text-sm text-zinc-300 leading-relaxed">{selectedGame.rules}</div>
+                <div className="text-sm text-zinc-300 leading-relaxed">
+                  {selectedGame.rules}
+                  {selectedGame.id === 'blindtest' && (
+                    <div className="mt-3 bg-zinc-900/80 p-3 rounded-md border border-zinc-700/50">
+                      <div className="text-zinc-400 mb-1">
+                        Thème actuel : <strong className="text-fuchsia-400">{getThemes().current?.name || 'Pause'}</strong>
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        Prochain : {getThemes().next?.name} (à {getThemes().next?.timeStr})
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
