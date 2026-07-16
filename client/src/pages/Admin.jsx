@@ -37,18 +37,19 @@ export default function Admin() {
   };
 
   // --- BLUFF ---
-  const bluffSetActive = async (tid, targetId) => {
-    const targetPlayer = leaderboard.find(p => p.id === targetId);
-    if (!targetPlayer) return;
+  const bluffSetRandomActive = async (tid) => {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', tid).single();
     const s = data.state;
-    s.active = { id: targetPlayer.id, name: targetPlayer.name };
+    if (!s.queue || s.queue.length === 0) return alert('Personne dans la file d\'attente !');
+    
+    const randomIndex = Math.floor(Math.random() * s.queue.length);
+    const targetPlayer = s.queue[randomIndex];
+    
+    s.active = targetPlayer;
     s.state = 'betting';
     s.bets = [];
     s.pool = 0;
-    if (s.queue) {
-      s.queue = s.queue.filter(p => p.id !== targetId);
-    }
+    s.queue = s.queue.filter(p => p.id !== targetPlayer.id);
     await updateGame(tid, s);
   };
 
@@ -270,15 +271,12 @@ export default function Admin() {
                 {g?.state === 'waiting' && (
                   <div className="flex flex-col gap-2 mt-2">
                     <p className="text-xs text-zinc-400">File d'attente ({g.queue?.length ?? 0}) : {g.queue?.map(q=>q.name).join(', ')}</p>
-                    <div className="flex gap-1">
-                      <select id={`bsel_${tid}`} className="bg-zinc-900 border border-zinc-700 rounded px-1 py-1 text-xs flex-1">
-                        {g.queue?.length > 0 && <option value="" disabled>-- Depuis la file --</option>}
-                        {g.queue?.map(p => <option key={`q_${p.id}`} value={p.id}>{p.name}</option>)}
-                        <option value="" disabled>-- Tous --</option>
-                        {leaderboard.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                      <button onClick={() => bluffSetActive(tid, document.getElementById(`bsel_${tid}`).value)} className="bg-indigo-600 px-2 py-1 rounded text-xs font-bold touch-manipulation">Go</button>
-                    </div>
+                    <button 
+                      onClick={() => bluffSetRandomActive(tid)} 
+                      disabled={!g.queue || g.queue.length === 0}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded text-xs font-bold touch-manipulation disabled:opacity-50">
+                      🎲 Tirer au sort depuis la file
+                    </button>
                   </div>
                 )}
                 {g?.state === 'betting' && (
