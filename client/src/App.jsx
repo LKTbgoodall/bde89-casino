@@ -156,16 +156,16 @@ function AppProvider({ children }) {
     const playerId = pid ?? player?.id;
     if (!playerId) return;
 
-    for (const gId of ['fifa', 'babyfoot', 'imposteur1', 'imposteur2']) {
+    for (const gId of ['fifa', 'babyfoot', 'imposteur1', 'imposteur2', 'bluff1', 'bluff2']) {
       const { data } = await supabase.from('game_states').select('state').eq('game_id', gId).single();
       if (!data) continue;
       let s = { ...data.state };
       let changed = false;
 
-      if (gId === 'fifa') {
-        const before = s.queue.length;
-        s.queue = s.queue.filter(p => p.id !== playerId);
-        changed = s.queue.length !== before;
+      if (gId === 'fifa' || gId === 'bluff1' || gId === 'bluff2') {
+        const before = s.queue?.length || 0;
+        if (s.queue) s.queue = s.queue.filter(p => p.id !== playerId);
+        changed = (s.queue?.length || 0) !== before;
       } else if (gId === 'babyfoot') {
         if (s.status === 'waiting') {
           const before = s.left.length + s.right.length;
