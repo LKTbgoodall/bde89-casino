@@ -60,7 +60,7 @@ export default function Bluff() {
         <div className="glass-card p-8 text-center border-t-4 border-indigo-500 flex flex-col items-center">
           <div className="text-4xl mb-4 animate-bounce">🪑</div>
           <h2 className="text-2xl font-black mb-2">Prends place</h2>
-          <p className="text-zinc-400 mb-6">Inscris-toi sur la liste. L'animateur choisira quelqu'un pour monter sur scène et raconter son anecdote.</p>
+          <p className="text-zinc-400 mb-6">Inscris-toi sur la liste. Un joueur sera tiré au sort pour monter sur scène et raconter son anecdote.</p>
 
           {inQueue ? (
             <div className="w-full">
