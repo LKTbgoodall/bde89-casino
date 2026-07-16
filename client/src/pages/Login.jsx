@@ -1,9 +1,10 @@
-import React, { useState, useContext, useRef, useEffect } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../App';
 
 export default function Login() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [adminCode, setAdminCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,11 +14,11 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) return setError('Entre ton prénom !');
+    if (!firstName.trim() || !lastName.trim()) return setError('Entre ton prénom ET ton nom !');
     setLoading(true);
     setError('');
     try {
-      const player = await login(name.trim(), adminCode.trim());
+      const player = await login(firstName.trim(), lastName.trim(), adminCode.trim());
       navigate(player.is_admin ? '/admin' : '/hub');
     } catch (err) {
       setError(err.message || 'Erreur de connexion');
@@ -37,17 +38,30 @@ export default function Login() {
         <p className="text-zinc-400 text-center mb-8">Bienvenue au casino du BDE 89</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1">Prénom ou pseudo</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-              placeholder="Ex: Jean D."
-              maxLength={20}
-              autoFocus
-            />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Prénom</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                placeholder="Ex: Jean"
+                maxLength={20}
+                autoFocus
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">Nom de famille</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                placeholder="Ex: Dupont"
+                maxLength={20}
+              />
+            </div>
           </div>
 
           {showAdmin && (

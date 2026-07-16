@@ -23,6 +23,12 @@ export default function Navbar() {
       .eq('id', player.id);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('casino_session');
+    setPlayer(null);
+    navigate('/login');
+  };
+
   const showBack = !['/hub', '/admin', '/login'].includes(location.pathname);
   const canRebuy = player.tokens < 20 && player.rebuys > 0;
   const needsAdmin = player.tokens < 20 && player.rebuys === 0;
@@ -58,6 +64,11 @@ export default function Navbar() {
             <span className="text-sm">🪙</span>
             <span className="font-mono font-bold text-sm">{player.tokens}</span>
           </div>
+          <button onClick={handleLogout} className="bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 p-2 rounded-lg shrink-0 touch-manipulation ml-1">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
       </div>
       {needsAdmin && !player.is_admin && (
