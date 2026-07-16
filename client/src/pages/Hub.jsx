@@ -60,8 +60,8 @@ export default function Hub() {
       </div>
 
       {selectedGame && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="glass-card w-full max-w-sm p-6 border-rose-500/30 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 h-[100dvh] z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in">
+          <div className="glass-card w-full max-w-sm max-h-[90dvh] overflow-y-auto p-6 border-rose-500/30 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-2xl font-black text-rose-400">{selectedGame.name}</h2>
               <button onClick={() => setSelectedGame(null)} className="text-zinc-500 hover:text-white p-1">
