@@ -4,7 +4,7 @@ import { AppContext } from '../App';
 
 const TABLES = [
   { id: 'fifa',          name: '🎮 FIFA 1v1',             path: '/games/fifa',                  location: 'Espace Gaming',    desc: 'Tournoi 1v1 sur console', rules: "Affronte un autre joueur sur FIFA. Si tu gagnes, tu remportes la mise." },
-  { id: 'babyfoot',      name: '⚽ Baby Foot 4v4',         path: '/games/babyfoot',              location: 'Foyer',            desc: 'Matchs par équipes de 4', rules: "Des matchs se déroulent en équipe. Tu peux parier sur l'équipe de gauche ou de droite." },
+  { id: 'babyfoot',      name: '⚽ Baby Foot',             path: '/games/babyfoot',              location: 'Foyer',            desc: 'Matchs en équipe (1v1 à 4v4)', rules: "Des matchs se déroulent en équipe (jusqu'à 4v4). Tu peux parier sur l'équipe de gauche ou de droite." },
   { id: 'bluff1',        name: '🃏 1V2B — Table 1',        path: '/games/bluff/bluff1',          location: 'Salle A1',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
   { id: 'bluff2',        name: '🃏 1V2B — Table 2',        path: '/games/bluff/bluff2',          location: 'Salle A2',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
   { id: 'blindtest',     name: '🎵 Blind Test',            path: '/games/blindtest',             location: 'Lounge Musique',   desc: 'Sois le plus rapide', rules: "Mise avant que la musique ne commence. Dès que tu reconnais, appuie sur le gros bouton BUZZ sur ton écran et donne la réponse à l'animateur." },

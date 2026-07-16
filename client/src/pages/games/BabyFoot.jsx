@@ -76,7 +76,7 @@ export default function BabyFoot() {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <h1 className="text-3xl font-bold text-center">⚽ Baby Foot 4v4</h1>
+      <h1 className="text-3xl font-bold text-center">⚽ Baby Foot</h1>
 
       {bf.status === 'betting' && myPlayer && !myPlayer.bet && (
         <div className="bg-rose-500/20 border border-rose-500 p-5 rounded-xl text-center">
@@ -92,7 +92,7 @@ export default function BabyFoot() {
       {bf.status === 'playing' && isPlaying && !myPlayer?.vote && (
         <div className="bg-emerald-500/10 border border-emerald-500/50 p-5 rounded-xl text-center">
           <h3 className="font-bold text-emerald-400 mb-2 animate-pulse">Match en cours !</h3>
-          <p className="text-sm text-zinc-300 mb-4">Votez pour le gagnant (6 votes requis).</p>
+          <p className="text-sm text-zinc-300 mb-4">Votez pour l'équipe gagnante (l'unanimité est requise pour valider).</p>
           <div className="flex flex-col gap-3">
             <button onClick={() => submitVote('left')} className="flex-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 py-4 rounded-xl border border-blue-500/50 font-bold touch-manipulation">🔵 Victoire Équipe Bleue</button>
             <button onClick={() => submitVote('right')} className="flex-1 bg-red-600/30 hover:bg-red-600/50 text-red-300 py-4 rounded-xl border border-red-500/50 font-bold touch-manipulation">🔴 Victoire Équipe Rouge</button>
@@ -136,7 +136,7 @@ export default function BabyFoot() {
       </div>
 
       {bf.status === 'waiting' && (bf.left.length > 0 || bf.right.length > 0) && (
-        <p className="text-center text-zinc-500 text-sm">En attente de 8 joueurs ou du lancement par un admin…</p>
+        <p className="text-center text-zinc-500 text-sm">En attente de joueurs ou du lancement par un admin…</p>
       )}
     </div>
   );
