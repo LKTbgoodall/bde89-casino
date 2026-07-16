@@ -1,20 +1,22 @@
-import React, { useContext } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../App';
 
 const TABLES = [
-  { id: 'fifa',          name: '🎮 FIFA 1v1',             path: '/games/fifa',                  location: 'Espace Gaming',    desc: 'Tournoi 1v1 sur console' },
-  { id: 'babyfoot',      name: '⚽ Baby Foot 4v4',         path: '/games/babyfoot',              location: 'Foyer',            desc: 'Matchs par équipes de 4' },
-  { id: 'bluff1',        name: '🃏 1V2B — Table 1',        path: '/games/bluff/bluff1',          location: 'Salle A1',         desc: 'Devine la vraie anecdote' },
-  { id: 'bluff2',        name: '🃏 1V2B — Table 2',        path: '/games/bluff/bluff2',          location: 'Salle A2',         desc: 'Devine la vraie anecdote' },
-  { id: 'blindtest',     name: '🎵 Blind Test',            path: '/games/blindtest',             location: 'Lounge Musique',   desc: 'Sois le plus rapide' },
-  { id: 'quidanslasalle',name: '🤔 Qui dans la salle',     path: '/games/quidanslasalle',        location: 'Amphi',            desc: 'Estime le bon pourcentage' },
-  { id: 'imposteur1',    name: '🕵️ Imposteur — Table 1',   path: '/games/undercover/imposteur1', location: 'Salle B1',         desc: 'Trouve les undercovers' },
-  { id: 'imposteur2',    name: '🕵️ Imposteur — Table 2',   path: '/games/undercover/imposteur2', location: 'Salle B2',         desc: 'Trouve les undercovers' },
+  { id: 'fifa',          name: '🎮 FIFA 1v1',             path: '/games/fifa',                  location: 'Espace Gaming',    desc: 'Tournoi 1v1 sur console', rules: "Affronte un autre joueur sur FIFA. Si tu gagnes, tu remportes la mise." },
+  { id: 'babyfoot',      name: '⚽ Baby Foot 4v4',         path: '/games/babyfoot',              location: 'Foyer',            desc: 'Matchs par équipes de 4', rules: "Des matchs se déroulent en équipe. Tu peux parier sur l'équipe de gauche ou de droite." },
+  { id: 'bluff1',        name: '🃏 1V2B — Table 1',        path: '/games/bluff/bluff1',          location: 'Salle A1',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
+  { id: 'bluff2',        name: '🃏 1V2B — Table 2',        path: '/games/bluff/bluff2',          location: 'Salle A2',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
+  { id: 'blindtest',     name: '🎵 Blind Test',            path: '/games/blindtest',             location: 'Lounge Musique',   desc: 'Sois le plus rapide', rules: "Mise avant que la musique ne commence. Dès que tu reconnais, appuie sur le gros bouton BUZZ sur ton écran et donne la réponse à l'animateur." },
+  { id: 'quidanslasalle',name: '🤔 Qui dans la salle',     path: '/games/quidanslasalle',        location: 'Amphi',            desc: 'Estime le bon pourcentage', rules: "L'animateur pose une question (ex: Qui a déjà redoublé ?). Parie sur le pourcentage exact de personnes dans la salle qui vont se lever." },
+  { id: 'imposteur1',    name: '🕵️ Imposteur — Table 1',   path: '/games/undercover/imposteur1', location: 'Salle B1',         desc: 'Trouve les undercovers', rules: "Jeu type Undercover. Chaque joueur reçoit un mot. Les civils ont le même, les imposteurs en ont un différent. Éliminez les imposteurs en votant !" },
+  { id: 'imposteur2',    name: '🕵️ Imposteur — Table 2',   path: '/games/undercover/imposteur2', location: 'Salle B2',         desc: 'Trouve les undercovers', rules: "Jeu type Undercover. Chaque joueur reçoit un mot. Les civils ont le même, les imposteurs en ont un différent. Éliminez les imposteurs en votant !" },
 ];
 
 export default function Hub() {
   const { games, leaderboard } = useContext(AppContext);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const navigate = useNavigate();
 
   const getCount = (id) => {
     const g = games[id];
@@ -37,10 +39,10 @@ export default function Hub() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {TABLES.map(table => (
-          <Link
+          <button
             key={table.id}
-            to={table.path}
-            className="glass-card p-5 hover:border-rose-500/50 hover:shadow-rose-500/10 transition-all group relative overflow-hidden block touch-manipulation"
+            onClick={() => setSelectedGame(table)}
+            className="glass-card p-5 hover:border-rose-500/50 hover:shadow-rose-500/10 transition-all group relative overflow-hidden block touch-manipulation text-left w-full"
           >
             <div className="absolute top-3 right-3">
               <span className="bg-zinc-800 text-xs px-2 py-1 rounded-md text-zinc-300 font-mono flex items-center gap-1 border border-zinc-700">
@@ -53,9 +55,45 @@ export default function Hub() {
             <div className="flex items-center text-xs text-zinc-500">
               <span className="mr-1">📍</span>{table.location}
             </div>
-          </Link>
+          </button>
         ))}
       </div>
+
+      {selectedGame && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="glass-card w-full max-w-sm p-6 border-rose-500/30 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-black text-rose-400">{selectedGame.name}</h2>
+              <button onClick={() => setSelectedGame(null)} className="text-zinc-500 hover:text-white p-1">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700">
+                <div className="text-xs text-zinc-400 uppercase font-bold mb-1">📍 Lieu</div>
+                <div className="font-medium text-white">{selectedGame.location}</div>
+              </div>
+              
+              <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700">
+                <div className="text-xs text-zinc-400 uppercase font-bold mb-1">📖 Règles du jeu</div>
+                <div className="text-sm text-zinc-300 leading-relaxed">{selectedGame.rules}</div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setSelectedGame(null)} className="flex-1 py-3 rounded-xl border border-zinc-700 text-zinc-300 font-bold hover:bg-zinc-800 touch-manipulation">
+                Retour
+              </button>
+              <button onClick={() => navigate(selectedGame.path)} className="flex-1 bg-rose-600 hover:bg-rose-500 py-3 rounded-xl text-white font-bold touch-manipulation shadow-lg shadow-rose-500/20">
+                Rejoindre 🚀
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {leaderboard.length > 0 && (
         <section className="glass p-6 rounded-2xl">
