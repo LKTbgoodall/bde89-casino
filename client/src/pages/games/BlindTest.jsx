@@ -42,6 +42,7 @@ export default function BlindTest() {
   return (
     <div className="space-y-6 animate-in fade-in">
       <h1 className="text-3xl font-bold text-center text-fuchsia-400">🎵 Blind Test</h1>
+      <p className="text-center text-zinc-400 text-sm mt-1 font-medium bg-fuchsia-500/10 border border-fuchsia-500/20 py-1.5 px-3 rounded-full w-max mx-auto">Nouveau thème toutes les 30 minutes !</p>
 
       <div className="glass-card p-5 text-center">
         <div className="text-xs text-zinc-400 uppercase tracking-widest font-bold mb-2">Cagnotte</div>
