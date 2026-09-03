@@ -96,7 +96,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
   const placeSpecBet = async () => {
     if (!specOn) return alert('Choisis un joueur !');
     const amt = parseInt(specBet);
-    if (amt < 2 || amt > 15 || amt > player.tokens * 0.5) return alert('Mise invalide (2-15)');
+    if (amt < 2 || amt > 10 || amt > player.tokens * 0.5) return alert('Mise invalide (2-10)');
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
     const s = data.state;
     if (!s.currentMatch || s.currentMatch.matchStarted) return;
@@ -167,7 +167,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
           {/* Spectator bet section */}
           {!isPlaying && !current.matchStarted && !amISpectatorBettor && (
             <div className="border-t border-zinc-800 pt-4">
-              <h3 className="font-bold text-sm text-zinc-400 mb-1">📣 Parier en spectateur (2-15🪙)</h3>
+              <h3 className="font-bold text-sm text-zinc-400 mb-1">📣 Parier en spectateur (2-10🪙)</h3>
               <p className="text-xs text-zinc-500 mb-3">Les gagnants se partagent la cagnotte des spectateurs.</p>
               <div className="flex flex-col gap-3">
                 <div className="flex gap-2">
@@ -175,7 +175,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
                   <button onClick={() => setSpecOn(current.player2)} className={`flex-1 py-3 rounded-xl text-sm font-bold border touch-manipulation ${specOn === current.player2 ? 'bg-red-600/30 border-red-500 text-red-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>{current.p2Name}</button>
                 </div>
                 <div className="flex gap-2">
-                  <input type="number" min="2" max="15" value={specBet} onChange={e => setSpecBet(e.target.value)} className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-3 w-24 text-center" />
+                  <input type="number" min="2" max="10" value={specBet} onChange={e => setSpecBet(e.target.value)} className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-3 w-24 text-center" />
                   <button onClick={placeSpecBet} className="flex-1 bg-rose-600 hover:bg-rose-500 py-3 rounded-xl font-bold touch-manipulation">Parier</button>
                 </div>
               </div>
