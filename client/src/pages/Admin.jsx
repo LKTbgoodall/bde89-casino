@@ -17,8 +17,8 @@ export default function Admin() {
     const defaults = {
       fifa: { queue: [], currentMatch: null, spectators: [] },
       babyfoot: { left: [], right: [], status: 'waiting', votes: { left: 0, right: 0 }, pool: 0 },
-      bluff1: { active: null, state: 'waiting', choices: [], queue: [] },
-      bluff2: { active: null, state: 'waiting', choices: [], queue: [] },
+      bluff1: { active: null, state: 'waiting', choices: [], queue: [], recentActives: [] },
+      bluff2: { active: null, state: 'waiting', choices: [], queue: [], recentActives: [] },
       blindtest: { state: 'waiting', players: [] },
       quidanslasalle: { question: null, pool: 0, answers: {}, status: 'waiting' },
       imposteur1: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '', pool: 0 },
@@ -76,14 +76,26 @@ export default function Admin() {
     const s = data.state;
     if (!s.queue || s.queue.length === 0) return alert('Personne dans la file d\'attente !');
     
-    const randomIndex = Math.floor(Math.random() * s.queue.length);
-    const targetPlayer = s.queue[randomIndex];
+    s.recentActives = s.recentActives || [];
+    
+    let eligible = s.queue.filter(p => !s.recentActives.includes(p.id));
+    if (eligible.length === 0) {
+      eligible = s.queue; // Fallback si pas assez de joueurs
+    }
+    
+    const randomIndex = Math.floor(Math.random() * eligible.length);
+    const targetPlayer = eligible[randomIndex];
     
     s.active = targetPlayer;
     s.state = 'guessing';
     s.choices = [];
     s.pool = 0;
-    // Laisser le joueur dans la file d'attente
+    
+    s.recentActives.push(targetPlayer.id);
+    if (s.recentActives.length > 2) {
+      s.recentActives.shift(); // Ne garder que les 2 derniers
+    }
+    
     await updateGame(tid, s);
   };
 
