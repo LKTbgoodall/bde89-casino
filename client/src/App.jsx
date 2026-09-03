@@ -150,7 +150,23 @@ function AppProvider({ children }) {
     if (error) console.error('updateGame error:', gameId, error);
   };
 
-  // --- Remove player from all physical queues ---
+  // --- Check if player is already registered in any game ---
+  const isAlreadyInGame = (playerId) => {
+    const pid = playerId ?? player?.id;
+    if (!pid) return null;
+
+    const g = games;
+    if (g.fifa?.queue?.find(p => p.id === pid)) return 'FIFA';
+    if (g.fifa?.currentMatch?.player1 === pid || g.fifa?.currentMatch?.player2 === pid) return 'FIFA';
+    if (g.babyfoot?.left?.find(p => p.id === pid) || g.babyfoot?.right?.find(p => p.id === pid)) return 'Babyfoot';
+    if (g.bluff1?.queue?.find(p => p.id === pid)) return 'Bluff (Table 1)';
+    if (g.bluff2?.queue?.find(p => p.id === pid)) return 'Bluff (Table 2)';
+    if (g.imposteur1?.players?.find(p => p.id === pid)) return 'Imposteur (Table 1)';
+    if (g.imposteur2?.players?.find(p => p.id === pid)) return 'Imposteur (Table 2)';
+    return null;
+  };
+
+  // --- Remove player from all queues (used on logout or manual leave) ---
   const leaveAllQueues = async (pid) => {
     const playerId = pid ?? player?.id;
     if (!playerId) return;
@@ -184,7 +200,7 @@ function AppProvider({ children }) {
   };
 
   return (
-    <AppContext.Provider value={{ player, setPlayer, games, leaderboard, loading, login, updateGame, leaveAllQueues }}>
+    <AppContext.Provider value={{ player, setPlayer, games, leaderboard, loading, login, updateGame, leaveAllQueues, isAlreadyInGame }}>
       <div className="bg-zinc-900 min-h-screen text-white font-sans">
         {player && <Navbar />}
         <main className="container mx-auto px-4 py-6 pb-24 max-w-lg md:max-w-4xl">

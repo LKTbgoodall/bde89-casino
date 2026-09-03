@@ -123,20 +123,15 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
         }
       });
 
-      // Resolve spectator bets
-      const spectatorPool = bf.spectatorPool ?? 0;
-      if (spectatorPool > 0 && bf.spectatorBets?.length > 0) {
-        const winningSpectators = bf.spectatorBets.filter(b => b.betOn === winnerSide);
-        const totalWinningBets = winningSpectators.reduce((sum, b) => sum + b.amount, 0);
-        if (totalWinningBets > 0) {
-          winningSpectators.forEach(b => {
-            const bWin = Math.floor((b.amount / totalWinningBets) * spectatorPool);
-            if (store.players[b.id]) {
-              store.players[b.id].tokens += bWin;
-              io.to(store.players[b.id].socketId).emit('player_update', store.players[b.id]);
-            }
-          });
-        }
+      // Spectators who bet on winner get x2 their bet back
+      if (bf.spectatorBets?.length > 0) {
+        const winningSpecs = bf.spectatorBets.filter(b => b.betOn === winnerSide);
+        winningSpecs.forEach(b => {
+          if (store.players[b.id]) {
+            store.players[b.id].tokens += b.amount * 2;
+            io.to(store.players[b.id].socketId).emit('player_update', store.players[b.id]);
+          }
+        });
       }
     } else {
       // Litige: refund spectators only (no player bets to refund)

@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase";
 
 export default function Bluff() {
   const { id } = useParams();
-  const { player, games, updateGame, leaveAllQueues } = useContext(AppContext);
+  const { player, games, updateGame, leaveAllQueues, isAlreadyInGame } = useContext(AppContext);
   const tableId = id === "bluff1" || id === "bluff2" ? id : "bluff1";
 
   const b = games[tableId] ?? {
@@ -19,7 +19,9 @@ export default function Bluff() {
   const playerActive = b.active?.id === player.id;
 
   const joinQueue = async () => {
-    await leaveAllQueues();
+    const alreadyIn = isAlreadyInGame();
+    if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
+Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     const { data } = await supabase
       .from("game_states")
       .select("state")

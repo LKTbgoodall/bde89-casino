@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 
 export default function Undercover() {
   const { id: tableId } = useParams();
-  const { player, games, updateGame, leaveAllQueues } = useContext(AppContext);
+  const { player, games, updateGame, leaveAllQueues, isAlreadyInGame } = useContext(AppContext);
   const [mrWhiteGuess, setMrWhiteGuess] = React.useState('');
 
   const u = games[tableId] ?? { state: 'waiting', players: [], pool: 0 };
@@ -14,7 +14,9 @@ export default function Undercover() {
   const amIAlive = amIPlaying && !amIPlaying.eliminated;
 
   const joinGame = async () => {
-    await leaveAllQueues();
+    const alreadyIn = isAlreadyInGame();
+    if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
+Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     const { data } = await supabase.from('game_states').select('state').eq('game_id', tableId).single();
     const s = data.state;
     if (s.state !== 'waiting') return alert('Partie déjà en cours');

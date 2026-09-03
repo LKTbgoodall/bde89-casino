@@ -3,7 +3,7 @@ import { AppContext } from '../../App';
 import { supabase } from '../../lib/supabase';
 
 export default function BabyFoot() {
-  const { player, games, updateGame, leaveAllQueues } = useContext(AppContext);
+  const { player, games, updateGame, leaveAllQueues, isAlreadyInGame } = useContext(AppContext);
   const bf = games.babyfoot ?? { left: [], right: [], status: 'waiting', spectatorPool: 0, spectatorBets: [] };
 
   const myLeft = bf.left?.find(p => p.id === player.id);
@@ -13,7 +13,9 @@ export default function BabyFoot() {
   const amISpectatorBettor = bf.spectatorBets?.find(b => b.id === player.id);
 
   const joinTeam = async (side) => {
-    await leaveAllQueues();
+    const alreadyIn = isAlreadyInGame();
+    if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
+Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
     const s = data.state;
     if (s.status !== 'waiting') return alert('Match déjà en cours');
@@ -71,20 +73,14 @@ export default function BabyFoot() {
         for (const w of winners) {
           const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
           await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 15 }).eq('id', w.id);
-        }
-        // Resolve spectator bets
-        const spectatorPool = s.spectatorPool ?? 0;
-        if (spectatorPool > 0 && s.spectatorBets?.length > 0) {
-          const winningSpecs = s.spectatorBets.filter(b => b.betOn === winSide);
-          const totalWinBets = winningSpecs.reduce((sum, b) => sum + b.amount, 0);
-          if (totalWinBets > 0) {
+          // Resolve spectator bets — winning spectators get x2 their bet
+          if (s.spectatorBets?.length > 0) {
+            const winningSpecs = s.spectatorBets.filter(b => b.betOn === winSide);
             for (const spec of winningSpecs) {
-              const sWin = Math.floor((spec.amount / totalWinBets) * spectatorPool);
               const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
-              await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + sWin }).eq('id', spec.id);
+              await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
             }
           }
-          // Refund losers? Non — their tokens are lost (spectators can lose)
         }
         s.left = []; s.right = []; s.status = 'waiting'; s.spectatorBets = []; s.spectatorPool = 0;
       }

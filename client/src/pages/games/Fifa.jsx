@@ -3,7 +3,7 @@ import { AppContext } from '../../App';
 import { supabase } from '../../lib/supabase';
 
 export default function Fifa() {
-  const { player, games, updateGame, leaveAllQueues } = useContext(AppContext);
+  const { player, games, updateGame, leaveAllQueues, isAlreadyInGame } = useContext(AppContext);
   const fifa = games.fifa ?? { queue: [], currentMatch: null, spectators: [] };
   const current = fifa.currentMatch;
 
@@ -14,7 +14,9 @@ export default function Fifa() {
   const amISpectatorBettor = current && fifa.spectators?.find(s => s.id === player.id);
 
   const joinQueue = async () => {
-    await leaveAllQueues();
+    const alreadyIn = isAlreadyInGame();
+    if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
+Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
     const s = data.state;
     if (s.queue.find(p => p.id === player.id)) return;
@@ -66,17 +68,12 @@ export default function Fifa() {
         const { data: wd } = await supabase.from('players').select('tokens').eq('id', winner).single();
         await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 20 }).eq('id', winner);
 
-        // Resolve spectator bets
-        const spectatorPool = m.spectatorPool ?? 0;
-        if (spectatorPool > 0 && s.spectators?.length > 0) {
+        // Resolve spectator bets — winning spectators get x2 their bet
+        if (s.spectators?.length > 0) {
           const winningSpecs = s.spectators.filter(s => s.betOn === winner);
-          const totalWinBets = winningSpecs.reduce((sum, s) => sum + s.amount, 0);
-          if (totalWinBets > 0) {
-            for (const spec of winningSpecs) {
-              const sWin = Math.floor((spec.amount / totalWinBets) * spectatorPool);
-              const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
-              await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + sWin }).eq('id', spec.id);
-            }
+          for (const spec of winningSpecs) {
+            const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+            await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
           }
         }
       } else {

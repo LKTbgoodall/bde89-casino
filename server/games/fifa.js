@@ -148,23 +148,14 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
         io.to(store.players[winnerId].socketId).emit('player_update', store.players[winnerId]);
       }
 
-      // Spectators who bet on winner get proportional share of spectator pool
-      const spectatorPool = current.spectatorPool;
-      if (spectatorPool > 0) {
-        const winningSpectators = fifa.spectators.filter(s => s.betOn === winnerId);
-        const totalWinningBets = winningSpectators.reduce((sum, s) => sum + s.amount, 0);
-
-        if (totalWinningBets > 0) {
-          winningSpectators.forEach(s => {
-            const sWin = Math.floor((s.amount / totalWinningBets) * spectatorPool);
-            if (store.players[s.id]) {
-              store.players[s.id].tokens += sWin;
-              io.to(store.players[s.id].socketId).emit('player_update', store.players[s.id]);
-            }
-          });
+      // Spectators who bet on winner get x2 their bet back
+      const winningSpectators = fifa.spectators.filter(s => s.betOn === winnerId);
+      winningSpectators.forEach(s => {
+        if (store.players[s.id]) {
+          store.players[s.id].tokens += s.amount * 2;
+          io.to(store.players[s.id].socketId).emit('player_update', store.players[s.id]);
         }
-        // Losers' bets stay gone (house keeps)
-      }
+      });
     } else {
       // Disagreement: refund spectators
       fifa.spectators.forEach(s => {
