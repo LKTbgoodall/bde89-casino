@@ -101,6 +101,27 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     await updateGame('fifa', s);
   };
 
+  const adminSubmitScore = async (winnerId) => {
+    if (!player?.is_admin) return;
+    if (!window.confirm("Forcer la victoire pour ce joueur ?")) return;
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
+    const s = data.state;
+    if (!s.currentMatch) return;
+
+    const { data: wd } = await supabase.from('players').select('tokens').eq('id', winnerId).single();
+    await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 20 }).eq('id', winnerId);
+
+    if (s.spectators?.length > 0) {
+      const winningSpecs = s.spectators.filter(sp => sp.betOn === winnerId);
+      for (const spec of winningSpecs) {
+        const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+        await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
+      }
+    }
+    s.currentMatch = null; s.spectators = [];
+    await updateGame('fifa', s);
+  };
+
   const [specBet, setSpecBet] = React.useState(5);
   const [specOn, setSpecOn] = React.useState(null);
 
@@ -173,6 +194,16 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
                   <button onClick={() => submitScore(current.player2)} className="flex-1 bg-red-600/20 border border-red-500 hover:bg-red-600/40 py-3 rounded-xl text-red-400 font-bold touch-manipulation">Victoire {current.p2Name}</button>
                 </div>
               ) : <div className="text-amber-400">Vote enregistré, en attente de l'adversaire…</div>}
+            </div>
+          )}
+
+          {player?.is_admin && current.matchStarted && (
+            <div className="bg-purple-900/30 border border-purple-500 p-4 rounded-xl text-center mt-4">
+              <h3 className="text-purple-300 font-bold mb-2">🛠 Action Admin : Forcer le résultat</h3>
+              <div className="flex gap-2">
+                <button onClick={() => adminSubmitScore(current.player1)} className="flex-1 bg-purple-600/50 hover:bg-purple-500 py-3 rounded-xl text-sm font-bold text-purple-100 touch-manipulation">Victoire {current.p1Name}</button>
+                <button onClick={() => adminSubmitScore(current.player2)} className="flex-1 bg-purple-600/50 hover:bg-purple-500 py-3 rounded-xl text-sm font-bold text-purple-100 touch-manipulation">Victoire {current.p2Name}</button>
+              </div>
             </div>
           )}
 

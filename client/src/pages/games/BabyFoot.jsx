@@ -93,6 +93,30 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     await updateGame('babyfoot', s);
   };
 
+  const adminSubmitVote = async (winnerSide) => {
+    if (!player?.is_admin) return;
+    if (!window.confirm("Forcer la victoire pour cette équipe ?")) return;
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
+    const s = data.state;
+    if (s.status !== 'playing') return;
+
+    const winners = s[winnerSide];
+    for (const w of winners) {
+      const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
+      await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 15 }).eq('id', w.id);
+      
+      if (s.spectatorBets?.length > 0) {
+        const winningSpecs = s.spectatorBets.filter(b => b.betOn === winnerSide);
+        for (const spec of winningSpecs) {
+          const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+          await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
+        }
+      }
+    }
+    s.left = []; s.right = []; s.status = 'waiting'; s.spectatorBets = []; s.spectatorPool = 0; s.conflict = false;
+    await updateGame('babyfoot', s);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in">
       <h1 className="text-3xl font-bold text-center">⚽ Baby Foot</h1>
@@ -106,6 +130,16 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
           <div className="flex flex-col gap-3">
             <button onClick={() => submitVote('left')} className="flex-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 py-4 rounded-xl border border-blue-500/50 font-bold touch-manipulation">🔵 Victoire Équipe Bleue</button>
             <button onClick={() => submitVote('right')} className="flex-1 bg-red-600/30 hover:bg-red-600/50 text-red-300 py-4 rounded-xl border border-red-500/50 font-bold touch-manipulation">🔴 Victoire Équipe Rouge</button>
+          </div>
+        </div>
+      )}
+
+      {player?.is_admin && bf.status === 'playing' && (
+        <div className="bg-purple-900/30 border border-purple-500 p-4 rounded-xl text-center mt-4">
+          <h3 className="text-purple-300 font-bold mb-2">🛠 Action Admin : Forcer le résultat</h3>
+          <div className="flex gap-2">
+            <button onClick={() => adminSubmitVote('left')} className="flex-1 bg-purple-600/50 hover:bg-purple-500 py-3 rounded-xl text-sm font-bold text-purple-100 touch-manipulation">Victoire Bleue</button>
+            <button onClick={() => adminSubmitVote('right')} className="flex-1 bg-purple-600/50 hover:bg-purple-500 py-3 rounded-xl text-sm font-bold text-purple-100 touch-manipulation">Victoire Rouge</button>
           </div>
         </div>
       )}
