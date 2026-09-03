@@ -20,7 +20,7 @@ export default function Fifa() {
     if (s.queue.find(p => p.id === player.id)) return;
     if (s.currentMatch && (s.currentMatch.player1 === player.id || s.currentMatch.player2 === player.id)) return;
     s.queue.push({ id: player.id, name: player.name });
-    // Auto-start match if 2+ in queue
+    // Auto-start match if 2+ in queue and no current match
     if (!s.currentMatch && s.queue.length >= 2) {
       const p1 = s.queue.shift();
       const p2 = s.queue.shift();
@@ -204,11 +204,19 @@ export default function Fifa() {
       {fifa.queue?.length > 0 && (
         <div className="glass p-4 rounded-xl">
           <h3 className="font-bold text-zinc-300 mb-2">File d'attente ({fifa.queue.length})</h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="space-y-1">
             {fifa.queue.map((q, i) => (
-              <span key={q.id} className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{i+1}. {q.name}</span>
+              <div key={q.id} className={`flex items-center gap-2 text-sm px-2 py-1 rounded ${
+                i === 0 ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-zinc-800/50 text-zinc-400'
+              }`}>
+                <span className="font-bold w-5">{i === 0 ? '👑' : `${i + 1}.`}</span>
+                <span>{q.name}</span>
+                {i === 0 && !current && <span className="text-xs ml-auto text-emerald-500 animate-pulse">Attend un adversaire…</span>}
+                {i === 1 && current && <span className="text-xs ml-auto text-amber-400">⚔️ Prochain match</span>}
+              </div>
             ))}
           </div>
+          {current && <p className="text-xs text-zinc-500 mt-2 italic">🏆 Le gagnant reste en place et affronte le suivant</p>}
         </div>
       )}
     </div>
