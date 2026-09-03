@@ -128,15 +128,9 @@ export default function Admin() {
     }, 5000);
   };
 
-  const btStartPlaying = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
-    const s = { ...data.state, state: 'playing' };
-    await updateGame('blindtest', s);
-    setBtSelectedPlayer(null);
-  };
   const btResolve = async (result) => {
     const winnerId = btSelectedPlayer;
-    if (!winnerId && result !== 'refund') return alert('Sélectionne un joueur !');
+    if (!winnerId) return alert('Sélectionne un joueur !');
     
     if (result === 'full') {
       const winnerTokens = (await supabase.from('players').select('tokens').eq('id', winnerId).single()).data?.tokens ?? 0;
@@ -146,9 +140,7 @@ export default function Admin() {
       await supabase.from('players').update({ tokens: winnerTokens + 5 }).eq('id', winnerId);
     } 
     
-    // reset round but keep players in queue
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
-    await updateGame('blindtest', { state: 'waiting', players: data.state.players || [] });
+    // Just unselect player, do not clear the players array or state
     setBtSelectedPlayer(null);
   };
 
@@ -339,47 +331,35 @@ export default function Admin() {
       <div className={`${cardClass} border-t-4 border-fuchsia-500`}>
         <div className="flex justify-between items-center mb-3">
           <h2 className="font-bold text-fuchsia-400">🎵 Blind Test</h2>
-          <span className={badgeClass}>{games.blindtest?.state} | {games.blindtest?.players?.length ?? 0} joueurs</span>
+          <span className={badgeClass}>{games.blindtest?.players?.length ?? 0} joueurs</span>
         </div>
-        <div className="space-y-2">
-          {(games.blindtest?.state === 'waiting' || games.blindtest?.state === 'joining') && (
-            <>
-              <p className="text-xs text-zinc-400">Inscrits: {games.blindtest.players ? games.blindtest.players.map(p => p.name).join(', ') : ''}</p>
-              <button onClick={btStartPlaying} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-sm font-bold touch-manipulation">▶ Lancer le son & Jouer</button>
-            </>
-          )}
-
-          {games.blindtest?.state === 'playing' && (
-            <div className="space-y-3">
-              <p className="text-xs text-zinc-400 font-bold uppercase">Sélectionne qui a levé la main :</p>
-              <div className="flex flex-wrap gap-2">
-                {games.blindtest.players?.map(p => (
-                  <button 
-                    key={p.id}
-                    onClick={() => setBtSelectedPlayer(p.id)}
-                    className={`px-3 py-1 text-sm rounded border ${btSelectedPlayer === p.id ? 'bg-fuchsia-600 border-fuchsia-400 font-bold' : 'bg-zinc-800 border-zinc-600 text-zinc-300'}`}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-              
-              {btSelectedPlayer && (
-                <div className="mt-3 space-y-2 border-t border-zinc-700 pt-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => btResolve('full')} className="bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">✅ Titre+Artiste (+10🪙)</button>
-                    <button onClick={() => btResolve('half')} className="bg-emerald-700/60 border border-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">🎵 Titre OU Artiste (+5🪙)</button>
-                  </div>
-                </div>
-              )}
-              
-              <div className="border-t border-zinc-700 pt-3 mt-3">
-                <button onClick={() => btResolve('refund')} className="w-full bg-zinc-600 py-2 rounded text-xs font-bold touch-manipulation">🔄 Annuler Manche (Personne n'a trouvé)</button>
+        <div className="space-y-3">
+          <p className="text-xs text-zinc-400 font-bold uppercase">Sélectionne qui a trouvé :</p>
+          <div className="flex flex-wrap gap-2">
+            {games.blindtest?.players?.map(p => (
+              <button 
+                key={p.id}
+                onClick={() => setBtSelectedPlayer(p.id)}
+                className={`px-3 py-1 text-sm rounded border ${btSelectedPlayer === p.id ? 'bg-fuchsia-600 border-fuchsia-400 font-bold' : 'bg-zinc-800 border-zinc-600 text-zinc-300'}`}
+              >
+                {p.name}
+              </button>
+            ))}
+            {(!games.blindtest?.players || games.blindtest.players.length === 0) && (
+              <p className="text-sm text-zinc-500 italic">Aucun joueur inscrit.</p>
+            )}
+          </div>
+          
+          {btSelectedPlayer && (
+            <div className="mt-3 space-y-2 border-t border-zinc-700 pt-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => btResolve('full')} className="bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">✅ Titre+Artiste (+10🪙)</button>
+                <button onClick={() => btResolve('half')} className="bg-emerald-700/60 border border-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">🎵 Titre OU Artiste (+5🪙)</button>
               </div>
             </div>
           )}
           
-          <button onClick={() => resetGame('blindtest')} className="text-rose-500 text-[10px] uppercase font-bold underline touch-manipulation block mt-2">Reset</button>
+          <button onClick={() => resetGame('blindtest')} className="text-rose-500 text-[10px] uppercase font-bold underline touch-manipulation block mt-2">Reset Complet (Vider joueurs)</button>
         </div>
       </div>
 

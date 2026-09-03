@@ -19,6 +19,15 @@ export default function BlindTest() {
     await updateGame('blindtest', s);
   };
 
+  const leaveRound = async () => {
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').maybeSingle();
+    const s = data?.state || { players: [] };
+    if (!s.players?.find(p => p.id === player.id)) return;
+    
+    s.players = s.players.filter(p => p.id !== player.id);
+    await updateGame('blindtest', s);
+  };
+
   const getThemes = () => {
     const now = new Date();
     const minutes = now.getHours() * 60 + now.getMinutes();
@@ -79,26 +88,18 @@ export default function BlindTest() {
             <button onClick={joinRound} className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 py-5 rounded-xl font-bold text-xl touch-manipulation">
               Je participe ! ✋
             </button>
-            <p className="text-xs text-zinc-500 mt-3 text-center">Tu peux rejoindre à tout moment, même pendant un son !</p>
+            <p className="text-xs text-zinc-500 mt-3 text-center">Tu peux rejoindre ou quitter la partie à tout moment !</p>
           </div>
         ) : (
-          <>
-            {(bt.state === 'waiting' || bt.state === 'joining' || !bt.state) && (
-              <div className="glass-card p-6 text-center border border-zinc-700/50">
-                <p className="font-bold text-fuchsia-400 mb-2">Tu es inscrit !</p>
-                <p className="text-zinc-400">Prépare-toi pour le prochain son.</p>
-                <p className="text-xs text-zinc-500 mt-2 animate-pulse">En attente de l'administrateur...</p>
-              </div>
-            )}
-
-            {bt.state === 'playing' && (
-              <div className="glass-card p-8 text-center border border-fuchsia-500/50">
-                <h2 className="text-zinc-400 text-sm font-bold uppercase tracking-widest mb-4">Écoute bien !</h2>
-                <div className="text-6xl mb-4 animate-bounce">🎧</div>
-                <p className="text-lg text-fuchsia-300 font-bold">Lève la main si tu as la réponse !</p>
-              </div>
-            )}
-          </>
+          <div className="glass-card p-8 text-center border border-fuchsia-500/50">
+            <h2 className="text-zinc-400 text-sm font-bold uppercase tracking-widest mb-4">Écoute bien !</h2>
+            <div className="text-6xl mb-4 animate-bounce">🎧</div>
+            <p className="text-lg text-fuchsia-300 font-bold mb-6">Lève la main si tu as la réponse !</p>
+            
+            <button onClick={leaveRound} className="text-xs text-rose-400 hover:text-rose-300 underline touch-manipulation">
+              Quitter la table
+            </button>
+          </div>
         )}
       </div>
     </div>
