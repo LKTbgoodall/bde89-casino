@@ -5,10 +5,8 @@ import { AppContext } from '../App';
 export default function Login() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [adminCode, setAdminCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
   const { login } = useContext(AppContext);
   const navigate = useNavigate();
 
@@ -18,7 +16,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const player = await login(firstName.trim(), lastName.trim(), adminCode.trim());
+      const player = await login(firstName.trim(), lastName.trim());
       navigate(player.is_admin ? '/admin' : '/hub');
     } catch (err) {
       setError(err.message || 'Erreur de connexion');
@@ -31,9 +29,8 @@ export default function Login() {
       <div className="glass-card p-8 w-full max-w-md">
         <h1
           className="text-4xl font-black text-center mb-2 bg-gradient-to-r from-rose-500 to-fuchsia-500 bg-clip-text text-transparent select-none cursor-default"
-          onDoubleClick={() => setShowAdmin(v => !v)}
         >
-          89 — TechCasino
+          89 — DRIPgame
         </h1>
         <p className="text-zinc-400 text-center mb-8">Bienvenue au casino du BDE 89</p>
 
@@ -63,19 +60,6 @@ export default function Login() {
               />
             </div>
           </div>
-
-          {showAdmin && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-500 mb-1">Code Admin</label>
-              <input
-                type="password"
-                value={adminCode}
-                onChange={e => setAdminCode(e.target.value)}
-                className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
-                placeholder="Réservé au BDE"
-              />
-            </div>
-          )}
 
           {error && (
             <div className="text-rose-400 text-sm bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">

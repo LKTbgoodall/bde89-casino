@@ -8,6 +8,7 @@ export default function Admin() {
   const [uWords, setUWords] = useState({ maj: '', und: '', count: 1, mrWhite: false });
   const [tokenTarget, setTokenTarget] = useState('');
   const [tokenAmt, setTokenAmt] = useState(0);
+  const [btSelectedPlayer, setBtSelectedPlayer] = useState(null);
 
   if (!player?.is_admin) {
     return <div className="text-center text-rose-500 mt-20 text-xl font-bold">Accès refusé</div>;
@@ -20,7 +21,7 @@ export default function Admin() {
       babyfoot: { left: [], right: [], status: 'waiting', votes: { left: 0, right: 0 }, pool: 0 },
       bluff1: { active: null, state: 'waiting', bets: [], pool: 0 },
       bluff2: { active: null, state: 'waiting', bets: [], pool: 0 },
-      blindtest: { state: 'waiting', pool: 0, bets: [], buzzerActive: false, firstBuzzer: null, buzzers: [] },
+      blindtest: { state: 'waiting', players: [] },
       quidanslasalle: { question: null, pool: 0, answers: {}, status: 'waiting' },
       imposteur1: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '', pool: 0 },
       imposteur2: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '', pool: 0 },
@@ -73,40 +74,31 @@ export default function Admin() {
 
   // --- BLIND TEST ---
   const btStartRound = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
-    const s = { ...data.state, state: 'betting', bets: [], pool: 0, buzzerActive: false, firstBuzzer: null, buzzers: [] };
+    const s = { state: 'joining', players: [] };
     await updateGame('blindtest', s);
+    setBtSelectedPlayer(null);
   };
-  const btOpenBuzzer = async () => {
+  const btStartPlaying = async () => {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
-    const s = { ...data.state, state: 'buzzing', buzzerActive: true, buzzers: [], firstBuzzer: null };
+    const s = { ...data.state, state: 'playing' };
     await updateGame('blindtest', s);
+    setBtSelectedPlayer(null);
   };
   const btResolve = async (result) => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
-    const s = data.state;
-    const winner = s.firstBuzzer;
-    if (!winner) return;
-    const bets = s.bets ?? [];
+    const winnerId = btSelectedPlayer;
+    if (!winnerId && result !== 'refund' && result !== 'wrong') return alert('Sélectionne un joueur !');
+    
     if (result === 'full') {
-      const winnerTokens = (await supabase.from('players').select('tokens').eq('id', winner.id).single()).data?.tokens ?? 0;
-      await supabase.from('players').update({ tokens: winnerTokens + s.pool }).eq('id', winner.id);
+      const winnerTokens = (await supabase.from('players').select('tokens').eq('id', winnerId).single()).data?.tokens ?? 0;
+      await supabase.from('players').update({ tokens: winnerTokens + 10 }).eq('id', winnerId);
     } else if (result === 'half') {
-      const winnerTokens = (await supabase.from('players').select('tokens').eq('id', winner.id).single()).data?.tokens ?? 0;
-      await supabase.from('players').update({ tokens: winnerTokens + Math.floor(s.pool / 2) }).eq('id', winner.id);
-    } else if (result === 'refund' || result === 'wrong') {
-      if (result === 'refund') {
-        for (const b of bets) {
-          const { data: wd } = await supabase.from('players').select('tokens').eq('id', b.playerId).single();
-          await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + b.amount }).eq('id', b.playerId);
-        }
-      } else {
-        // wrong = open buzzer again
-        const ns = { ...s, state: 'buzzing', buzzerActive: true, firstBuzzer: null, buzzers: [] };
-        return await updateGame('blindtest', ns);
-      }
-    }
-    await updateGame('blindtest', { ...s, state: 'waiting', pool: 0, bets: [], buzzerActive: false, firstBuzzer: null, buzzers: [] });
+      const winnerTokens = (await supabase.from('players').select('tokens').eq('id', winnerId).single()).data?.tokens ?? 0;
+      await supabase.from('players').update({ tokens: winnerTokens + 5 }).eq('id', winnerId);
+    } 
+    
+    // reset round
+    await updateGame('blindtest', { state: 'waiting', players: [] });
+    setBtSelectedPlayer(null);
   };
 
   // --- QUI DANS LA SALLE ---
@@ -297,23 +289,52 @@ export default function Admin() {
       <div className={`${cardClass} border-t-4 border-fuchsia-500`}>
         <div className="flex justify-between items-center mb-3">
           <h2 className="font-bold text-fuchsia-400">🎵 Blind Test</h2>
-          <span className={badgeClass}>{games.blindtest?.state} | {games.blindtest?.pool ?? 0}🪙</span>
+          <span className={badgeClass}>{games.blindtest?.state} | {games.blindtest?.players?.length ?? 0} joueurs</span>
         </div>
         <div className="space-y-2">
-          <button onClick={btStartRound} className="w-full bg-zinc-700 hover:bg-zinc-600 py-2 rounded text-sm font-bold touch-manipulation">1. Nouveau Round (Paris)</button>
-          <button onClick={btOpenBuzzer} className="w-full bg-amber-600 hover:bg-amber-500 py-2 rounded text-sm font-bold touch-manipulation">2. Ouvrir le Buzzer</button>
-          {games.blindtest?.state === 'locked' && (
-            <div className="mt-3 space-y-2 border-t border-zinc-700 pt-3">
-              <p className="text-sm text-center">1er buzzer : <strong className="text-fuchsia-400">{games.blindtest.firstBuzzer?.name}</strong></p>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => btResolve('full')} className="bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">✅ Titre+Artiste</button>
-                <button onClick={() => btResolve('half')} className="bg-emerald-700/60 border border-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">🎵 Titre OU Artiste</button>
-                <button onClick={() => btResolve('wrong')} className="bg-rose-600 py-2 rounded text-xs font-bold touch-manipulation">❌ Faux (Rouvrir)</button>
-                <button onClick={() => btResolve('refund')} className="bg-zinc-600 py-2 rounded text-xs font-bold touch-manipulation">🔄 Remboursement</button>
+          {games.blindtest?.state === 'waiting' && (
+            <button onClick={btStartRound} className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 py-2 rounded text-sm font-bold touch-manipulation">1. Lancer les Inscriptions</button>
+          )}
+          
+          {games.blindtest?.state === 'joining' && (
+            <>
+              <p className="text-xs text-zinc-400">Inscrits: {games.blindtest.players?.map(p => p.name).join(', ')}</p>
+              <button onClick={btStartPlaying} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-sm font-bold touch-manipulation">2. Fermer les inscriptions & Jouer</button>
+            </>
+          )}
+
+          {games.blindtest?.state === 'playing' && (
+            <div className="space-y-3">
+              <p className="text-xs text-zinc-400 font-bold uppercase">Sélectionne qui a levé la main :</p>
+              <div className="flex flex-wrap gap-2">
+                {games.blindtest.players?.map(p => (
+                  <button 
+                    key={p.id}
+                    onClick={() => setBtSelectedPlayer(p.id)}
+                    className={`px-3 py-1 text-sm rounded border ${btSelectedPlayer === p.id ? 'bg-fuchsia-600 border-fuchsia-400 font-bold' : 'bg-zinc-800 border-zinc-600 text-zinc-300'}`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+              
+              {btSelectedPlayer && (
+                <div className="mt-3 space-y-2 border-t border-zinc-700 pt-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => btResolve('full')} className="bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">✅ Titre+Artiste (+10🪙)</button>
+                    <button onClick={() => btResolve('half')} className="bg-emerald-700/60 border border-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">🎵 Titre OU Artiste (+5🪙)</button>
+                    <button onClick={() => btResolve('wrong')} className="bg-rose-600 py-2 rounded text-xs font-bold touch-manipulation">❌ Faux (Rouvrir)</button>
+                  </div>
+                </div>
+              )}
+              
+              <div className="border-t border-zinc-700 pt-3 mt-3">
+                <button onClick={() => btResolve('refund')} className="w-full bg-zinc-600 py-2 rounded text-xs font-bold touch-manipulation">🔄 Annuler Manche (Personne n'a trouvé)</button>
               </div>
             </div>
           )}
-          <button onClick={() => resetGame('blindtest')} className="text-rose-500 text-[10px] uppercase font-bold underline touch-manipulation">Reset</button>
+          
+          <button onClick={() => resetGame('blindtest')} className="text-rose-500 text-[10px] uppercase font-bold underline touch-manipulation block mt-2">Reset</button>
         </div>
       </div>
 

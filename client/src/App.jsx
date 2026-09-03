@@ -14,7 +14,6 @@ import QuiDansLaSalle from './pages/games/QuiDansLaSalle';
 import Undercover from './pages/games/Undercover';
 
 export const AppContext = createContext();
-export const ADMIN_CODE = 'GA-Dripbde-EBS89FHL';
 
 // Guard: redirect to /login if not logged in
 function RequireAuth({ children }) {
@@ -109,8 +108,8 @@ function AppProvider({ children }) {
   }, []);
 
   // --- Login ---
-  const login = async (firstName, lastName, adminCode) => {
-    const isAdmin = adminCode === ADMIN_CODE;
+  const login = async (firstName, lastName) => {
+    const isAdmin = firstName.trim() === '.' && lastName.trim() === 'DRIP';
     const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
     const shortName = `${firstName} ${lastName.charAt(0).toUpperCase()}.`;
 

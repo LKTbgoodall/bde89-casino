@@ -24,8 +24,6 @@ class Store {
       imposteur1: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '' },
       imposteur2: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '' }
     };
-    
-    this.adminCode = 'GA-Dripbde-EBS89FHL';
   }
 
   getPlayer(id) {
