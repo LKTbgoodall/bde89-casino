@@ -10,7 +10,6 @@ import Fifa from './pages/games/Fifa';
 import BabyFoot from './pages/games/BabyFoot';
 import Bluff from './pages/games/Bluff';
 import BlindTest from './pages/games/BlindTest';
-import QuiDansLaSalle from './pages/games/QuiDansLaSalle';
 import Undercover from './pages/games/Undercover';
 
 export const AppContext = createContext();
@@ -223,7 +222,6 @@ export default function App() {
           <Route path="/games/babyfoot" element={<RequireAuth><BabyFoot /></RequireAuth>} />
           <Route path="/games/bluff/:id" element={<RequireAuth><Bluff /></RequireAuth>} />
           <Route path="/games/blindtest" element={<RequireAuth><BlindTest /></RequireAuth>} />
-          <Route path="/games/quidanslasalle" element={<RequireAuth><QuiDansLaSalle /></RequireAuth>} />
           <Route path="/games/undercover/:id" element={<RequireAuth><Undercover /></RequireAuth>} />
         </Routes>
       </AppProvider>

@@ -8,7 +8,6 @@ const TABLES = [
   { id: 'bluff1',        name: '🃏 1V1B — Table 1',        path: '/games/bluff/bluff1',          location: 'Salle A1',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
   { id: 'bluff2',        name: '🃏 1V1B — Table 2',        path: '/games/bluff/bluff2',          location: 'Salle A2',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
   { id: 'blindtest',     name: '🎵 Blind Test',            path: '/games/blindtest',             location: 'Lounge Musique',   desc: 'Sois le plus rapide', rules: "Mise avant que la musique ne commence. Dès que tu reconnais, appuie sur le gros bouton BUZZ sur ton écran et donne la réponse à l'animateur." },
-  { id: 'quidanslasalle',name: '🤔 Qui dans la salle',     path: '/games/quidanslasalle',        location: 'Amphi',            desc: 'Estime le bon pourcentage', rules: "L'animateur pose une question (ex: Qui a déjà redoublé ?). Parie sur le pourcentage exact de personnes dans la salle qui vont se lever." },
   { id: 'imposteur1',    name: '🕵️ Imposteur — Table 1',   path: '/games/undercover/imposteur1', location: 'Salle B1',         desc: 'Trouve les undercovers', rules: "Jeu type Undercover. Chaque joueur reçoit un mot. Les civils ont le même, les imposteurs en ont un différent. Éliminez les imposteurs en votant !" },
   { id: 'imposteur2',    name: '🕵️ Imposteur — Table 2',   path: '/games/undercover/imposteur2', location: 'Salle B2',         desc: 'Trouve les undercovers', rules: "Jeu type Undercover. Chaque joueur reçoit un mot. Les civils ont le même, les imposteurs en ont un différent. Éliminez les imposteurs en votant !" },
 ];
@@ -63,7 +62,6 @@ export default function Hub() {
     if (id.startsWith('imposteur')) return g.players?.length ?? 0;
     if (id.startsWith('bluff')) return g.bets?.length ?? 0;
     if (id === 'blindtest') return g.bets?.length ?? 0;
-    if (id === 'quidanslasalle') return Object.keys(g.answers ?? {}).length;
     return 0;
   };
 

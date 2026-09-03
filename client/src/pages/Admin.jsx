@@ -20,7 +20,6 @@ export default function Admin() {
       bluff1: { active: null, state: 'waiting', choices: [], queue: [], recentActives: [] },
       bluff2: { active: null, state: 'waiting', choices: [], queue: [], recentActives: [] },
       blindtest: { state: 'waiting', players: [] },
-      quidanslasalle: { question: null, pool: 0, answers: {}, status: 'waiting' },
       imposteur1: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '', pool: 0 },
       imposteur2: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '', pool: 0 },
     };
@@ -142,33 +141,6 @@ export default function Admin() {
     
     // Just unselect player, do not clear the players array or state
     setBtSelectedPlayer(null);
-  };
-
-  // --- QUI DANS LA SALLE ---
-  const qStart = async () => {
-    if (!qQuestion.trim()) return alert('Saisis une question');
-    const s = { question: qQuestion.trim(), status: 'betting', pool: 0, answers: {} };
-    await updateGame('quidanslasalle', s);
-    setQQuestion('');
-  };
-  const qReveal = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'quidanslasalle').single();
-    const s = data.state;
-    const answers = Object.values(s.answers ?? {});
-    const yesPct = answers.length > 0 ? Math.round((answers.filter(a => a.isMe).length / answers.length) * 100) : 0;
-    const diffs = answers.map(a => ({ ...a, diff: Math.abs(a.percent - yesPct) }));
-    const minDiff = Math.min(...diffs.map(d => d.diff));
-    const winners = diffs.filter(d => d.diff === minDiff).map(d => d.playerId);
-    if (winners.length > 0 && s.pool > 0) {
-      const share = Math.floor(s.pool / winners.length);
-      for (const wId of winners) {
-        const { data: wd } = await supabase.from('players').select('tokens').eq('id', wId).single();
-        await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + share }).eq('id', wId);
-      }
-    }
-    const na = {};
-    Object.entries(s.answers ?? {}).forEach(([k, v]) => { na[k] = { ...v }; });
-    await updateGame('quidanslasalle', { ...s, status: 'revealed', truePercent: yesPct, winners });
   };
 
   // --- BABYFOOT ---
@@ -361,22 +333,6 @@ export default function Admin() {
           
           <button onClick={() => resetGame('blindtest')} className="text-rose-500 text-[10px] uppercase font-bold underline touch-manipulation block mt-2">Reset Complet (Vider joueurs)</button>
         </div>
-      </div>
-
-      {/* QUI DANS LA SALLE */}
-      <div className={`${cardClass} border-t-4 border-teal-500`}>
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="font-bold text-teal-400">🤔 Qui dans la salle</h2>
-          <span className={badgeClass}>{games.quidanslasalle?.status} | {Object.keys(games.quidanslasalle?.answers ?? {}).length} rép.</span>
-        </div>
-        {(games.quidanslasalle?.status === 'waiting' || games.quidanslasalle?.status === 'revealed') ? (
-          <div className="flex gap-2">
-            <input type="text" placeholder="Question…" value={qQuestion} onChange={e => setQQuestion(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded px-2 py-2 text-sm flex-1" />
-            <button onClick={qStart} className="bg-teal-600 px-3 rounded text-sm font-bold touch-manipulation">Lancer</button>
-          </div>
-        ) : (
-          <button onClick={qReveal} className="w-full bg-teal-600 py-2 rounded text-sm font-bold touch-manipulation">Fermer & Révéler</button>
-        )}
       </div>
 
       {/* IMPOSTEUR */}
