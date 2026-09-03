@@ -10,7 +10,29 @@ export default function BabyFoot() {
   const myRight = bf.right?.find(p => p.id === player.id);
   const myPlayer = myLeft || myRight;
   const isPlaying = !!myPlayer;
+  const inQueue = bf.queue?.find(p => p.id === player.id);
   const amISpectatorBettor = bf.spectatorBets?.find(b => b.id === player.id);
+
+  const joinQueue = async () => {
+    const alreadyIn = isAlreadyInGame();
+    if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
+Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
+    const s = data.state;
+    s.queue = s.queue || [];
+    if (s.queue.find(p => p.id === player.id)) return;
+    if (s.left.find(p => p.id === player.id) || s.right.find(p => p.id === player.id)) return;
+    s.queue.push({ id: player.id, name: player.name });
+    await updateGame('babyfoot', s);
+  };
+
+  const leaveQueue = async () => {
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
+    const s = data.state;
+    s.queue = s.queue || [];
+    s.queue = s.queue.filter(p => p.id !== player.id);
+    await updateGame('babyfoot', s);
+  };
 
   const joinTeam = async (side) => {
     const alreadyIn = isAlreadyInGame();
@@ -23,6 +45,9 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     const team = s[side];
     if (team.length >= 4) return alert('Équipe complète !');
     team.push({ id: player.id, name: player.name, vote: null });
+    // Remove from queue when joining team
+    s.queue = s.queue || [];
+    s.queue = s.queue.filter(p => p.id !== player.id);
     await updateGame('babyfoot', s);
   };
 
@@ -201,6 +226,34 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
 
       {bf.status === 'waiting' && (bf.left.length > 0 || bf.right.length > 0) && (
         <p className="text-center text-zinc-500 text-sm">En attente de joueurs ou du lancement par un admin…</p>
+      )}
+
+      {!isPlaying && (
+        <div className="glass-card p-6 text-center mt-6">
+          {!inQueue ? (
+            <button onClick={joinQueue} className="bg-rose-600 hover:bg-rose-500 active:bg-rose-400 text-white px-8 py-4 rounded-xl font-bold text-lg touch-manipulation w-full">
+              Rejoindre la file d'attente
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-rose-400 animate-pulse font-medium">
+                En file… ({bf.queue?.findIndex(p => p.id === player.id) + 1}e)
+              </div>
+              <button onClick={leaveQueue} className="text-zinc-500 text-sm underline touch-manipulation">Quitter la file</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {bf.queue?.length > 0 && (
+        <div className="glass p-4 rounded-xl mt-6">
+          <h3 className="font-bold text-zinc-300 mb-2">File d'attente ({bf.queue.length})</h3>
+          <div className="flex flex-wrap gap-2">
+            {bf.queue.map((q, i) => (
+              <span key={q.id} className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{i+1}. {q.name}</span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
