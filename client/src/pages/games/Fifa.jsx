@@ -21,6 +21,20 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     const s = data.state;
     if (s.queue.find(p => p.id === player.id)) return;
     if (s.currentMatch && (s.currentMatch.player1 === player.id || s.currentMatch.player2 === player.id)) return;
+
+    // Rate limiting: max 3 joins per 30 minutes
+    const now = Date.now();
+    s.joinHistory = s.joinHistory || {};
+    let myHistory = s.joinHistory[player.id] || [];
+    myHistory = myHistory.filter(t => now - t < 30 * 60 * 1000); // Keep only last 30 mins
+    
+    if (myHistory.length >= 3) {
+      return alert("Tu as rejoint la file d'attente trop de fois ! Patiente un peu (max 3 parties par 30 minutes).");
+    }
+
+    myHistory.push(now);
+    s.joinHistory[player.id] = myHistory;
+
     s.queue.push({ id: player.id, name: player.name });
     // Auto-start match if 2+ in queue and no current match
     if (!s.currentMatch && s.queue.length >= 2) {
