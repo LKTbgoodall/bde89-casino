@@ -43,6 +43,7 @@ export default function BlindTest() {
     }
   
     if (!current) {
+      current = { name: "Pause / Hors planning", timeStr: "Maintenant" };
       for (let i = 0; i < schedule.length; i++) {
         if (minutes < schedule[i].start) {
           next = schedule[i];
@@ -62,14 +63,8 @@ export default function BlindTest() {
       <h1 className="text-3xl font-bold text-center text-fuchsia-400">🎵 Blind Test</h1>
       
       <div className="bg-fuchsia-900/20 border border-fuchsia-500/20 rounded-xl p-4 text-center">
-        {currentTheme ? (
-          <>
-            <div className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-1">Thème Actuel</div>
-            <div className="text-xl font-bold text-white mb-2">{currentTheme.name}</div>
-          </>
-        ) : (
-          <div className="text-sm text-zinc-400 italic mb-2">Pause / Hors planning</div>
-        )}
+        <div className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-1">Thème Actuel</div>
+        <div className="text-xl font-bold text-white mb-2">{currentTheme.name}</div>
         {nextTheme && (
           <div className="text-xs text-fuchsia-300">
             Prochain thème : {nextTheme.name} (à {nextTheme.timeStr})

@@ -42,6 +42,7 @@ export default function Hub() {
     }
   
     if (!current) {
+      current = { name: "Pause / Hors planning", timeStr: "Maintenant" };
       for (let i = 0; i < schedule.length; i++) {
         if (minutes < schedule[i].start) {
           next = schedule[i];
@@ -120,7 +121,7 @@ export default function Hub() {
                   {selectedGame.id === 'blindtest' && (
                     <div className="mt-3 bg-zinc-900/80 p-3 rounded-md border border-zinc-700/50">
                       <div className="text-zinc-400 mb-1">
-                        Thème actuel : <strong className="text-fuchsia-400">{getThemes().current?.name || 'Pause'}</strong>
+                        Thème actuel : <strong className="text-fuchsia-400">{getThemes().current.name}</strong>
                       </div>
                       <div className="text-xs text-zinc-500">
                         Prochain : {getThemes().next?.name} (à {getThemes().next?.timeStr})
