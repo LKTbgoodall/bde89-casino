@@ -17,8 +17,8 @@ export default function Admin() {
     const defaults = {
       fifa: { queue: [], currentMatch: null, spectators: [] },
       babyfoot: { left: [], right: [], status: 'waiting', votes: { left: 0, right: 0 }, pool: 0 },
-      bluff1: { active: null, state: 'waiting', bets: [], pool: 0 },
-      bluff2: { active: null, state: 'waiting', bets: [], pool: 0 },
+      bluff1: { active: null, state: 'waiting', choices: [], queue: [] },
+      bluff2: { active: null, state: 'waiting', choices: [], queue: [] },
       blindtest: { state: 'waiting', players: [] },
       quidanslasalle: { question: null, pool: 0, answers: {}, status: 'waiting' },
       imposteur1: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '', pool: 0 },
@@ -90,14 +90,15 @@ export default function Admin() {
   const bluffReveal = async (tid, truthWon) => {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', tid).single();
     const s = data.state;
-    if (!s.bets) return;
-    const winners = s.bets.filter(b => b.isTruth === truthWon);
-    const totalPool = s.pool;
+    if (!s.choices) return;
+    
+    const correctChoice = truthWon ? 'vérité' : 'bluff';
+    const winners = s.choices.filter(c => c.choice === correctChoice);
+    
     if (winners.length > 0) {
-      const share = Math.floor(totalPool / winners.length);
       for (const w of winners) {
-        const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.playerId).single();
-        await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + share }).eq('id', w.playerId);
+        const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
+        await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 5 }).eq('id', w.id);
       }
     }
     s.state = 'revealed';
@@ -290,7 +291,7 @@ export default function Admin() {
               <div key={tid} className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-bold uppercase">{tid}</span>
-                  <span className={badgeClass}>{g?.state} | {g?.pool ?? 0}🪙</span>
+                  <span className={badgeClass}>{g?.state}</span>
                 </div>
                 {g?.state === 'waiting' && (
                   <div className="flex flex-col gap-2 mt-2">
@@ -305,7 +306,7 @@ export default function Admin() {
                 )}
                 {g?.state === 'betting' && (
                   <div className="flex flex-col gap-1 mt-2">
-                    <p className="text-xs text-zinc-400 mb-1">Sur scène : <strong className="text-white">{g.active?.name}</strong> | {g.bets?.length ?? 0} paris</p>
+                    <p className="text-xs text-zinc-400 mb-1">Sur scène : <strong className="text-white">{g.active?.name}</strong> | {g.choices?.length ?? 0} choix</p>
                     <button onClick={() => bluffReveal(tid, true)} className="w-full bg-emerald-700 text-xs py-2 rounded font-bold touch-manipulation">✅ C'était la VÉRITÉ</button>
                     <button onClick={() => bluffReveal(tid, false)} className="w-full bg-zinc-600 text-xs py-2 rounded font-bold touch-manipulation">🤡 C'était un BLUFF</button>
                   </div>

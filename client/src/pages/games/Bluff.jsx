@@ -67,8 +67,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
           </div>
         </div>
         <div className="text-right text-sm text-zinc-400">
-          <div>Bonne réponse : <span className="text-emerald-400 font-bold">+15 🪙</span></div>
-          <div>Personne ne trouve : actif <span className="text-amber-400 font-bold">+10 🪙</span></div>
+          <div>Bonne réponse : <span className="text-emerald-400 font-bold">+5 🪙</span></div>
         </div>
       </div>
 
@@ -195,7 +194,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
         <div className="glass-card p-8 text-center border-2 border-emerald-500/50">
           <h2 className="text-2xl font-black mb-4">Révélation !</h2>
           <p className="text-zinc-400 text-sm">
-            Les gagnants ont reçu <span className="text-emerald-400 font-bold">+15 🪙</span> chacun.
+            Les gagnants ont reçu <span className="text-emerald-400 font-bold">+5 🪙</span> chacun.
           </p>
           <div className="mt-4 text-xs text-zinc-500">
             Prochain round bientôt…
