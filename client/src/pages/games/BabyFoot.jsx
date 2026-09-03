@@ -82,7 +82,12 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
             }
           }
         }
-        s.left = []; s.right = []; s.status = 'waiting'; s.spectatorBets = []; s.spectatorPool = 0;
+        s.left = []; s.right = []; s.status = 'waiting'; s.spectatorBets = []; s.spectatorPool = 0; s.conflict = false;
+      } else {
+        // Disagreement: reset votes and show conflict message
+        s.left.forEach(p => p.vote = null);
+        s.right.forEach(p => p.vote = null);
+        s.conflict = true;
       }
     }
     await updateGame('babyfoot', s);
@@ -96,6 +101,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
       {bf.status === 'playing' && isPlaying && !myPlayer?.vote && (
         <div className="bg-emerald-500/10 border border-emerald-500/50 p-5 rounded-xl text-center">
           <h3 className="font-bold text-emerald-400 mb-2 animate-pulse">Match en cours !</h3>
+          {bf.conflict && <p className="text-sm font-bold text-red-500 mb-3 animate-pulse">⚠️ Le résultat n'est pas le même ! Mettez-vous d'accord pour valider et recevoir les jetons.</p>}
           <p className="text-sm text-zinc-300 mb-4">Votez pour l'équipe gagnante (75% requis pour valider).</p>
           <div className="flex flex-col gap-3">
             <button onClick={() => submitVote('left')} className="flex-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 py-4 rounded-xl border border-blue-500/50 font-bold touch-manipulation">🔵 Victoire Équipe Bleue</button>

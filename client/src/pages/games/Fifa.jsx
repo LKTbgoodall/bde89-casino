@@ -76,16 +76,13 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
             await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
           }
         }
+        s.currentMatch = null; s.spectators = [];
       } else {
-        // Disagreement: refund spectators
-        if (s.spectators?.length > 0) {
-          for (const spec of s.spectators) {
-            const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
-            await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount }).eq('id', spec.id);
-          }
-        }
+        // Disagreement: reset votes and show conflict message
+        m.p1Vote = null;
+        m.p2Vote = null;
+        m.conflict = true;
       }
-      s.currentMatch = null; s.spectators = [];
     }
     await updateGame('fifa', s);
   };
@@ -154,6 +151,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
           {isPlaying && current.matchStarted && (
             <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
               <h3 className="font-bold text-rose-400 animate-pulse mb-3">MATCH EN COURS ⚽</h3>
+              {current.conflict && <p className="text-sm font-bold text-red-500 mb-3 animate-pulse">⚠️ Le résultat n'est pas le même ! Mettez-vous d'accord pour continuer et avoir les points.</p>}
               <p className="text-sm text-zinc-400 mb-5">Jouez votre match puis déclarez le gagnant.</p>
               {!((isP1 && current.p1Vote) || (isP2 && current.p2Vote)) ? (
                 <div className="flex flex-col gap-3">
