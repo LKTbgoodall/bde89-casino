@@ -282,7 +282,7 @@ export default function Admin() {
 
       {/* BLUFF */}
       <div className={`${cardClass} border-t-4 border-indigo-500`}>
-        <h2 className="font-bold text-indigo-400 mb-4">🃏 1V2B</h2>
+        <h2 className="font-bold text-indigo-400 mb-4">🃏 1V1B</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {['bluff1', 'bluff2'].map(tid => {
             const g = games[tid];
