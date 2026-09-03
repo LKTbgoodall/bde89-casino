@@ -10,29 +10,7 @@ export default function BabyFoot() {
   const myRight = bf.right?.find(p => p.id === player.id);
   const myPlayer = myLeft || myRight;
   const isPlaying = !!myPlayer;
-  const inQueue = bf.queue?.find(p => p.id === player.id);
   const amISpectatorBettor = bf.spectatorBets?.find(b => b.id === player.id);
-
-  const joinQueue = async () => {
-    const alreadyIn = isAlreadyInGame();
-    if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
-Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
-    const s = data.state;
-    s.queue = s.queue || [];
-    if (s.queue.find(p => p.id === player.id)) return;
-    if (s.left.find(p => p.id === player.id) || s.right.find(p => p.id === player.id)) return;
-    s.queue.push({ id: player.id, name: player.name });
-    await updateGame('babyfoot', s);
-  };
-
-  const leaveQueue = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
-    const s = data.state;
-    s.queue = s.queue || [];
-    s.queue = s.queue.filter(p => p.id !== player.id);
-    await updateGame('babyfoot', s);
-  };
 
   const joinTeam = async (side) => {
     const alreadyIn = isAlreadyInGame();
@@ -45,9 +23,6 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     const team = s[side];
     if (team.length >= 4) return alert('Équipe complète !');
     team.push({ id: player.id, name: player.name, vote: null });
-    // Remove from queue when joining team
-    s.queue = s.queue || [];
-    s.queue = s.queue.filter(p => p.id !== player.id);
     await updateGame('babyfoot', s);
   };
 
@@ -68,6 +43,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     if (amt < 2 || amt > 10 || amt > player.tokens * 0.5) return alert('Mise invalide (2-10)');
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
     const s = data.state;
+    if (s.status === 'playing') return alert('Match en cours, paris fermés !');
     // Check not a participant
     if (s.left.find(p => p.id === player.id) || s.right.find(p => p.id === player.id)) return alert('Les joueurs ne peuvent pas parier');
     if (s.spectatorBets?.find(b => b.id === player.id)) return alert('Tu as déjà parié');
@@ -118,30 +94,6 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     await updateGame('babyfoot', s);
   };
 
-  const adminSubmitVote = async (winnerSide) => {
-    if (!player?.is_admin) return;
-    if (!window.confirm("Forcer la victoire pour cette équipe ?")) return;
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
-    const s = data.state;
-    if (s.status !== 'playing') return;
-
-    const winners = s[winnerSide];
-    for (const w of winners) {
-      const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
-      await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 15 }).eq('id', w.id);
-      
-      if (s.spectatorBets?.length > 0) {
-        const winningSpecs = s.spectatorBets.filter(b => b.betOn === winnerSide);
-        for (const spec of winningSpecs) {
-          const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
-          await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
-        }
-      }
-    }
-    s.left = []; s.right = []; s.status = 'waiting'; s.spectatorBets = []; s.spectatorPool = 0; s.conflict = false;
-    await updateGame('babyfoot', s);
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in">
       <h1 className="text-3xl font-bold text-center">⚽ Baby Foot</h1>
@@ -159,18 +111,8 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
         </div>
       )}
 
-      {player?.is_admin && bf.status === 'playing' && (
-        <div className="bg-purple-900/30 border border-purple-500 p-4 rounded-xl text-center mt-4">
-          <h3 className="text-purple-300 font-bold mb-2">🛠 Action Admin : Forcer le résultat</h3>
-          <div className="flex gap-2">
-            <button onClick={() => adminSubmitVote('left')} className="flex-1 bg-purple-600/50 hover:bg-purple-500 py-3 rounded-xl text-sm font-bold text-purple-100 touch-manipulation">Victoire Bleue</button>
-            <button onClick={() => adminSubmitVote('right')} className="flex-1 bg-purple-600/50 hover:bg-purple-500 py-3 rounded-xl text-sm font-bold text-purple-100 touch-manipulation">Victoire Rouge</button>
-          </div>
-        </div>
-      )}
-
       {/* Spectator betting (only during playing, non-participants) */}
-      {bf.status === 'playing' && !isPlaying && !amISpectatorBettor && (
+      {bf.status === 'waiting' && !isPlaying && !amISpectatorBettor && (
         <div className="glass-card p-5 border-t-4 border-amber-500">
           <h3 className="font-bold text-amber-400 mb-1">📣 Parier en spectateur (2-10🪙)</h3>
           <p className="text-xs text-zinc-500 mb-3">Les spectateurs gagnants se partagent la cagnotte.</p>
@@ -186,7 +128,10 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
           </div>
         </div>
       )}
-      {bf.status === 'playing' && !isPlaying && amISpectatorBettor && (
+      {bf.status === 'playing' && !isPlaying && !amISpectatorBettor && (
+        <div className="text-center text-rose-500 animate-pulse font-bold text-sm glass-card p-4">Match en cours — paris fermés !</div>
+      )}
+      {(bf.status === 'playing' || bf.status === 'waiting') && !isPlaying && amISpectatorBettor && (
         <div className="text-center text-emerald-400 text-sm glass-card p-4">✓ Pari enregistré sur {amISpectatorBettor.betOn === 'left' ? '🔵 Bleue' : '🔴 Rouge'} — bonne chance !</div>
       )}
 
@@ -226,34 +171,6 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
 
       {bf.status === 'waiting' && (bf.left.length > 0 || bf.right.length > 0) && (
         <p className="text-center text-zinc-500 text-sm">En attente de joueurs ou du lancement par un admin…</p>
-      )}
-
-      {!isPlaying && (
-        <div className="glass-card p-6 text-center mt-6">
-          {!inQueue ? (
-            <button onClick={joinQueue} className="bg-rose-600 hover:bg-rose-500 active:bg-rose-400 text-white px-8 py-4 rounded-xl font-bold text-lg touch-manipulation w-full">
-              Rejoindre la file d'attente
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-rose-400 animate-pulse font-medium">
-                En file… ({bf.queue?.findIndex(p => p.id === player.id) + 1}e)
-              </div>
-              <button onClick={leaveQueue} className="text-zinc-500 text-sm underline touch-manipulation">Quitter la file</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {bf.queue?.length > 0 && (
-        <div className="glass p-4 rounded-xl mt-6">
-          <h3 className="font-bold text-zinc-300 mb-2">File d'attente ({bf.queue.length})</h3>
-          <div className="flex flex-wrap gap-2">
-            {bf.queue.map((q, i) => (
-              <span key={q.id} className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{i+1}. {q.name}</span>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );
