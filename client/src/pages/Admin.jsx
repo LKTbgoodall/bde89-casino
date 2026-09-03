@@ -6,8 +6,6 @@ export default function Admin() {
   const { player, games, leaderboard, updateGame } = useContext(AppContext);
   const [qQuestion, setQQuestion] = useState('');
   const [uWords, setUWords] = useState({ maj: '', und: '', count: 1, mrWhite: false });
-  const [tokenTarget, setTokenTarget] = useState('');
-  const [tokenAmt, setTokenAmt] = useState(0);
   const [btSelectedPlayer, setBtSelectedPlayer] = useState(null);
 
   if (!player?.is_admin) {
@@ -29,13 +27,6 @@ export default function Admin() {
     await updateGame(gameId, defaults[gameId]);
   };
 
-  const adminTokens = async () => {
-    const p = leaderboard.find(p => p.id === tokenTarget);
-    if (!p) return alert('Joueur introuvable');
-    const { data } = await supabase.from('players').select('tokens').eq('id', tokenTarget).single();
-    await supabase.from('players').update({ tokens: (data?.tokens ?? 0) + parseInt(tokenAmt) }).eq('id', tokenTarget);
-    alert('✓ Jetons mis à jour !');
-  };
 
   // --- BLUFF ---
   const bluffSetRandomActive = async (tid) => {
@@ -206,25 +197,6 @@ export default function Admin() {
     <div className="space-y-6 animate-in fade-in">
       <h1 className="text-3xl font-bold text-rose-500">🎛️ Admin BDE</h1>
 
-      {/* TOKEN MANAGEMENT */}
-      <div className={`${cardClass} border-t-4 border-yellow-500`}>
-        <h2 className="font-bold mb-4 text-yellow-400">💰 Jetons Joueurs</h2>
-        <div className="flex gap-2 items-center">
-          <select value={tokenTarget} onChange={e => setTokenTarget(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded px-2 py-2 flex-1 text-sm">
-            <option value="">Choisir un joueur…</option>
-            {leaderboard.map(p => <option key={p.id} value={p.id}>{p.name} ({p.tokens}🪙)</option>)}
-          </select>
-          <input type="number" value={tokenAmt} onChange={e => setTokenAmt(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded px-2 py-2 w-20 text-center" placeholder="±" />
-          <button onClick={adminTokens} className="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded font-bold text-sm touch-manipulation">OK</button>
-        </div>
-        <div className="mt-4 space-y-1 max-h-40 overflow-y-auto">
-          {leaderboard.map((p, i) => (
-            <div key={p.id} className="flex justify-between text-sm px-2 py-1 bg-zinc-800/50 rounded">
-              <span>#{i+1} {p.name}</span><span className="text-amber-400 font-mono">{p.tokens}🪙</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* FIFA */}
       <div className={`${cardClass} border-t-4 border-rose-500`}>
