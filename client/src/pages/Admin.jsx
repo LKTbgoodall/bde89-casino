@@ -80,10 +80,10 @@ export default function Admin() {
     const targetPlayer = s.queue[randomIndex];
     
     s.active = targetPlayer;
-    s.state = 'betting';
-    s.bets = [];
+    s.state = 'guessing';
+    s.choices = [];
     s.pool = 0;
-    s.queue = s.queue.filter(p => p.id !== targetPlayer.id);
+    // Laisser le joueur dans la file d'attente
     await updateGame(tid, s);
   };
 
@@ -101,9 +101,19 @@ export default function Admin() {
         await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 5 }).eq('id', w.id);
       }
     }
-    s.state = 'revealed';
+    s.state = 'revealing';
     await updateGame(tid, s);
-    setTimeout(() => resetGame(tid), 5000);
+    setTimeout(async () => {
+      const { data: latest } = await supabase.from('game_states').select('state').eq('game_id', tid).single();
+      const st = latest.state;
+      if (st.state === 'revealing') {
+        st.state = 'waiting';
+        st.active = null;
+        st.choices = [];
+        st.pool = 0;
+        await updateGame(tid, st);
+      }
+    }, 5000);
   };
 
   // --- BLIND TEST ---
@@ -304,7 +314,7 @@ export default function Admin() {
                     </button>
                   </div>
                 )}
-                {g?.state === 'betting' && (
+                {g?.state === 'guessing' && (
                   <div className="flex flex-col gap-1 mt-2">
                     <p className="text-xs text-zinc-400 mb-1">Sur scène : <strong className="text-white">{g.active?.name}</strong> | {g.choices?.length ?? 0} choix</p>
                     <button onClick={() => bluffReveal(tid, true)} className="w-full bg-emerald-700 text-xs py-2 rounded font-bold touch-manipulation">✅ C'était la VÉRITÉ</button>
