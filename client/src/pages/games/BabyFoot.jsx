@@ -43,7 +43,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     if (amt < 2 || amt > 10 || amt > player.tokens * 0.5) return alert('Mise invalide (2-10)');
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
     const s = data.state;
-    if (s.status === 'playing') return alert('Match en cours, paris fermés !');
+    if (s.status !== 'betting') return alert('Les paris ne sont ouverts que pendant la phase de mise !');
     // Check not a participant
     if (s.left.find(p => p.id === player.id) || s.right.find(p => p.id === player.id)) return alert('Les joueurs ne peuvent pas parier');
     if (s.spectatorBets?.find(b => b.id === player.id)) return alert('Tu as déjà parié');
@@ -111,8 +111,8 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
         </div>
       )}
 
-      {/* Spectator betting (only during playing, non-participants) */}
-      {bf.status === 'waiting' && !isPlaying && !amISpectatorBettor && (
+      {/* Spectator betting (only during betting, non-participants) */}
+      {bf.status === 'betting' && !isPlaying && !amISpectatorBettor && (
         <div className="glass-card p-5 border-t-4 border-amber-500">
           <h3 className="font-bold text-amber-400 mb-1">📣 Parier en spectateur (2-10🪙)</h3>
           <p className="text-xs text-zinc-500 mb-3">Les spectateurs gagnants se partagent la cagnotte.</p>
@@ -128,10 +128,13 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
           </div>
         </div>
       )}
+      {bf.status === 'waiting' && !isPlaying && !amISpectatorBettor && (
+        <div className="text-center text-zinc-500 font-bold text-sm glass-card p-4">Attente de l'admin pour ouvrir les paris…</div>
+      )}
       {bf.status === 'playing' && !isPlaying && !amISpectatorBettor && (
         <div className="text-center text-rose-500 animate-pulse font-bold text-sm glass-card p-4">Match en cours — paris fermés !</div>
       )}
-      {(bf.status === 'playing' || bf.status === 'waiting') && !isPlaying && amISpectatorBettor && (
+      {(bf.status === 'playing' || bf.status === 'betting') && !isPlaying && amISpectatorBettor && (
         <div className="text-center text-emerald-400 text-sm glass-card p-4">✓ Pari enregistré sur {amISpectatorBettor.betOn === 'left' ? '🔵 Bleue' : '🔴 Rouge'} — bonne chance !</div>
       )}
 
@@ -170,7 +173,16 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
       </div>
 
       {bf.status === 'waiting' && (bf.left.length > 0 || bf.right.length > 0) && (
-        <p className="text-center text-zinc-500 text-sm">En attente de joueurs ou du lancement par un admin…</p>
+        <div className="bg-zinc-800/50 p-4 rounded-xl text-center border border-zinc-700 mt-6">
+          <p className="text-zinc-400 font-medium">Demandez à un admin de lancer les paris quand vous êtes prêts !</p>
+        </div>
+      )}
+      
+      {bf.status === 'betting' && isPlaying && (
+        <div className="bg-amber-500/10 p-4 rounded-xl text-center border border-amber-500/50 mt-6">
+          <h3 className="text-amber-400 font-bold animate-pulse">Les paris sont ouverts !</h3>
+          <p className="text-zinc-300 text-sm mt-1">Le match va bientôt commencer, attendez le feu vert de l'admin.</p>
+        </div>
       )}
     </div>
   );
