@@ -170,21 +170,6 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     // Reset match
     fifa.currentMatch = null;
     fifa.spectators = [];
-
-    // Winner auto-rejoins at the front of the queue (stays on the station)
-    // Loser has to rejoin at the back like everyone else
-    if (winnerId && store.players[winnerId]) {
-      const winner = store.players[winnerId];
-      // Only re-add if there's someone waiting (otherwise they'll get paired with themselves next loop)
-      if (fifa.queue.length >= 1) {
-        fifa.queue.unshift({ id: winner.id, name: winner.name, ready: false });
-      }
-      // If queue is empty, winner stays alone waiting — they'll show in queue
-      else {
-        fifa.queue.push({ id: winner.id, name: winner.name, ready: false });
-      }
-    }
-
     checkFifaMatch(fifa);
   };
 };

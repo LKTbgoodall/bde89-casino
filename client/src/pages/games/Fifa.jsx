@@ -114,19 +114,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
 
       {!current && (
         <div className="glass-card p-6 text-center">
-          <p className="text-zinc-400 mb-5">Aucun match en cours.</p>
-          {!inQueue ? (
-            <button onClick={joinQueue} className="bg-rose-600 hover:bg-rose-500 active:bg-rose-400 text-white px-8 py-4 rounded-xl font-bold text-lg touch-manipulation w-full">
-              Rejoindre la file d'attente
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-rose-400 animate-pulse font-medium">
-                En file… ({fifa.queue.findIndex(p => p.id === player.id) + 1}e)
-              </div>
-              <button onClick={leaveQueue} className="text-zinc-500 text-sm underline touch-manipulation">Quitter la file</button>
-            </div>
-          )}
+          <p className="text-zinc-400">Aucun match en cours.</p>
         </div>
       )}
 
@@ -198,22 +186,31 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
         </div>
       )}
 
+      {!isPlaying && (
+        <div className="glass-card p-6 text-center">
+          {!inQueue ? (
+            <button onClick={joinQueue} className="bg-rose-600 hover:bg-rose-500 active:bg-rose-400 text-white px-8 py-4 rounded-xl font-bold text-lg touch-manipulation w-full">
+              Rejoindre la file d'attente
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-rose-400 animate-pulse font-medium">
+                En file… ({fifa.queue.findIndex(p => p.id === player.id) + 1}e)
+              </div>
+              <button onClick={leaveQueue} className="text-zinc-500 text-sm underline touch-manipulation">Quitter la file</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {fifa.queue?.length > 0 && (
         <div className="glass p-4 rounded-xl">
           <h3 className="font-bold text-zinc-300 mb-2">File d'attente ({fifa.queue.length})</h3>
-          <div className="space-y-1">
+          <div className="flex flex-wrap gap-2">
             {fifa.queue.map((q, i) => (
-              <div key={q.id} className={`flex items-center gap-2 text-sm px-2 py-1 rounded ${
-                i === 0 ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-zinc-800/50 text-zinc-400'
-              }`}>
-                <span className="font-bold w-5">{i === 0 ? '👑' : `${i + 1}.`}</span>
-                <span>{q.name}</span>
-                {i === 0 && !current && <span className="text-xs ml-auto text-emerald-500 animate-pulse">Attend un adversaire…</span>}
-                {i === 1 && current && <span className="text-xs ml-auto text-amber-400">⚔️ Prochain match</span>}
-              </div>
+              <span key={q.id} className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-400">{i+1}. {q.name}</span>
             ))}
           </div>
-          {current && <p className="text-xs text-zinc-500 mt-2 italic">🏆 Le gagnant reste en place et affronte le suivant</p>}
         </div>
       )}
     </div>
