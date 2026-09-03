@@ -25,9 +25,51 @@ export default function Admin() {
       imposteur2: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '', pool: 0 },
     };
     await updateGame(gameId, defaults[gameId]);
+    await updateGame(gameId, defaults[gameId]);
   };
 
+  const fifaAdminSubmitScore = async (winnerId) => {
+    if (!window.confirm("Forcer la victoire pour ce joueur ?")) return;
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
+    const s = data.state;
+    if (!s.currentMatch) return;
 
+    const { data: wd } = await supabase.from('players').select('tokens').eq('id', winnerId).single();
+    await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 20 }).eq('id', winnerId);
+
+    if (s.spectators?.length > 0) {
+      const winningSpecs = s.spectators.filter(sp => sp.betOn === winnerId);
+      for (const spec of winningSpecs) {
+        const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+        await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
+      }
+    }
+    s.currentMatch = null; s.spectators = [];
+    await updateGame('fifa', s);
+  };
+
+  const bfAdminSubmitScore = async (winnerSide) => {
+    if (!window.confirm("Forcer la victoire pour cette équipe ?")) return;
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
+    const s = data.state;
+    if (s.status !== 'playing') return;
+
+    const winners = s[winnerSide];
+    for (const w of winners) {
+      const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
+      await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 15 }).eq('id', w.id);
+      
+      if (s.spectatorBets?.length > 0) {
+        const winningSpecs = s.spectatorBets.filter(b => b.betOn === winnerSide);
+        for (const spec of winningSpecs) {
+          const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+          await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
+        }
+      }
+    }
+    s.left = []; s.right = []; s.status = 'waiting'; s.spectatorBets = []; s.spectatorPool = 0; s.conflict = false;
+    await updateGame('babyfoot', s);
+  };
   // --- BLUFF ---
   const bluffSetRandomActive = async (tid) => {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', tid).single();
@@ -204,6 +246,15 @@ export default function Admin() {
           <h2 className="font-bold text-rose-400">🎮 FIFA</h2>
           <span className={badgeClass}>File: {games.fifa?.queue?.length ?? 0} | {games.fifa?.currentMatch ? 'Match en cours' : 'Libre'}</span>
         </div>
+        {games.fifa?.currentMatch?.matchStarted && (
+          <div className="mb-3 p-3 bg-zinc-800 rounded border border-zinc-700">
+            <p className="text-xs text-zinc-400 mb-2 font-bold uppercase">Arbitrer le match :</p>
+            <div className="flex gap-2">
+              <button onClick={() => fifaAdminSubmitScore(games.fifa.currentMatch.player1)} className="flex-1 bg-blue-600/50 hover:bg-blue-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire {games.fifa.currentMatch.p1Name}</button>
+              <button onClick={() => fifaAdminSubmitScore(games.fifa.currentMatch.player2)} className="flex-1 bg-red-600/50 hover:bg-red-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire {games.fifa.currentMatch.p2Name}</button>
+            </div>
+          </div>
+        )}
         <button onClick={() => resetGame('fifa')} className="w-full bg-rose-900/30 border border-rose-500/30 text-rose-400 text-xs py-2 rounded hover:bg-rose-900/50 touch-manipulation">⚠️ Reset</button>
       </div>
 
@@ -213,6 +264,15 @@ export default function Admin() {
           <h2 className="font-bold text-emerald-400">⚽ Baby Foot</h2>
           <span className={badgeClass}>{games.babyfoot?.status} | {(games.babyfoot?.left?.length ?? 0) + (games.babyfoot?.right?.length ?? 0)} joueurs</span>
         </div>
+        {games.babyfoot?.status === 'playing' && (
+          <div className="mb-3 p-3 bg-zinc-800 rounded border border-zinc-700">
+            <p className="text-xs text-zinc-400 mb-2 font-bold uppercase">Arbitrer le match :</p>
+            <div className="flex gap-2">
+              <button onClick={() => bfAdminSubmitScore('left')} className="flex-1 bg-blue-600/50 hover:bg-blue-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Bleue</button>
+              <button onClick={() => bfAdminSubmitScore('right')} className="flex-1 bg-red-600/50 hover:bg-red-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Rouge</button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2">
           {games.babyfoot?.status === 'waiting' && <button onClick={bfStartMatch} className="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">Lancer les mises</button>}
           {games.babyfoot?.status === 'betting' && <button onClick={bfStartPlaying} className="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">Démarrer le match</button>}
