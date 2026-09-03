@@ -4,7 +4,6 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
       store.games[tableId] = { 
         state: 'waiting', // waiting, playing, mrwhite_guess, finished
         players: [], // { id, name, role, eliminated, votedFor }
-        pool: 0,
         majorityWord: '',
         undercoverWord: '',
         turnOrder: [],
@@ -68,8 +67,6 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     if (game.state !== 'waiting') return callback({ success: false, error: 'Game in progress' });
     if (game.players.find(x => x.id === p.id)) return callback({ success: false, error: 'Already joined' });
 
-    if (p.tokens < 10) return callback({ success: false, error: 'Not enough tokens (need 10)' });
-
     game.players.push({ id: p.id, name: p.name, role: null, eliminated: false, votedFor: null });
     
     broadcastU(tableId);
@@ -98,17 +95,6 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     if (!p || !p.isAdmin) return;
     if (game.state !== 'waiting') return;
     if (game.players.length < 3) return callback({ success: false, error: 'Not enough players' });
-
-    // Collect bets
-    game.pool = 0;
-    game.players.forEach(player => {
-       const sPlayer = store.players[player.id];
-       if (sPlayer) {
-          sPlayer.tokens -= 10;
-          game.pool += 10;
-          io.to(sPlayer.socketId).emit('player_update', sPlayer);
-       }
-    });
 
     game.majorityWord = majorityWord;
     game.undercoverWord = undercoverWord;
@@ -265,16 +251,14 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     game.state = 'finished';
     game.winnerRole = winnerRole;
 
+    // Each winner gets +15 tokens (fixed reward, never lose)
     const winners = game.players.filter(p => p.role === winnerRole);
-    if (winners.length > 0) {
-       const share = Math.floor(game.pool / winners.length);
-       winners.forEach(w => {
-         if (store.players[w.id]) {
-            store.players[w.id].tokens += share;
-            io.to(store.players[w.id].socketId).emit('player_update', store.players[w.id]);
-         }
-       });
-    }
+    winners.forEach(w => {
+      if (store.players[w.id]) {
+        store.players[w.id].tokens += 15;
+        io.to(store.players[w.id].socketId).emit('player_update', store.players[w.id]);
+      }
+    });
 
     broadcastLeaderboard();
     broadcastU(tableId);
@@ -285,7 +269,6 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
           store.games[tableId] = { 
             state: 'waiting', 
             players: [], 
-            pool: 0,
             majorityWord: '',
             undercoverWord: '',
             turnOrder: [],
@@ -300,7 +283,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     const p = store.getPlayerBySocket(socket.id);
     if (!p || !p.isAdmin) return;
     store.games[tableId] = { 
-      state: 'waiting', players: [], pool: 0, majorityWord: '', undercoverWord: '', turnOrder: [], currentTurnIndex: 0
+      state: 'waiting', players: [], majorityWord: '', undercoverWord: '', turnOrder: [], currentTurnIndex: 0
     };
     broadcastU(tableId);
     if (callback) callback({ success: true });

@@ -24,7 +24,14 @@ export default function Fifa() {
     if (!s.currentMatch && s.queue.length >= 2) {
       const p1 = s.queue.shift();
       const p2 = s.queue.shift();
-      s.currentMatch = { player1: p1.id, player2: p2.id, p1Name: p1.name, p2Name: p2.name, pool: 0, p1Ready: false, p2Ready: false, p1Bet: 0, p2Bet: 0, p1Vote: null, p2Vote: null, matchStarted: false };
+      s.currentMatch = {
+        player1: p1.id, player2: p2.id,
+        p1Name: p1.name, p2Name: p2.name,
+        spectatorPool: 0,
+        p1Ready: false, p2Ready: false,
+        p1Vote: null, p2Vote: null,
+        matchStarted: false
+      };
     }
     await updateGame('fifa', s);
   };
@@ -36,17 +43,13 @@ export default function Fifa() {
     await updateGame('fifa', s);
   };
 
-  const confirmMatch = async (bet) => {
-    bet = parseInt(bet);
-    if (bet < 5 || bet > 30 || bet > player.tokens * 0.5) return alert('Mise invalide (5-30, max 50% de tes jetons)');
+  const confirmReady = async () => {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
     const s = data.state;
     if (!s.currentMatch) return;
-    if (isP1) { s.currentMatch.p1Ready = true; s.currentMatch.p1Bet = bet; }
-    else if (isP2) { s.currentMatch.p2Ready = true; s.currentMatch.p2Bet = bet; }
-    s.currentMatch.pool += bet;
+    if (isP1) s.currentMatch.p1Ready = true;
+    else if (isP2) s.currentMatch.p2Ready = true;
     if (s.currentMatch.p1Ready && s.currentMatch.p2Ready) s.currentMatch.matchStarted = true;
-    await supabase.from('players').update({ tokens: player.tokens - bet }).eq('id', player.id);
     await updateGame('fifa', s);
   };
 
@@ -58,26 +61,39 @@ export default function Fifa() {
     if (isP2) m.p2Vote = winnerId;
     if (m.p1Vote && m.p2Vote) {
       if (m.p1Vote === m.p2Vote) {
-        // Pay winner
+        // Pay winner +20 tokens
         const winner = m.p1Vote;
-        const winnerTokens = winner === m.player1
-          ? (await supabase.from('players').select('tokens').eq('id', m.player1).single()).data.tokens
-          : (await supabase.from('players').select('tokens').eq('id', m.player2).single()).data.tokens;
-        await supabase.from('players').update({ tokens: winnerTokens + m.pool }).eq('id', winner);
+        const { data: wd } = await supabase.from('players').select('tokens').eq('id', winner).single();
+        await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 20 }).eq('id', winner);
+
+        // Resolve spectator bets
+        const spectatorPool = m.spectatorPool ?? 0;
+        if (spectatorPool > 0 && s.spectators?.length > 0) {
+          const winningSpecs = s.spectators.filter(s => s.betOn === winner);
+          const totalWinBets = winningSpecs.reduce((sum, s) => sum + s.amount, 0);
+          if (totalWinBets > 0) {
+            for (const spec of winningSpecs) {
+              const sWin = Math.floor((spec.amount / totalWinBets) * spectatorPool);
+              const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+              await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + sWin }).eq('id', spec.id);
+            }
+          }
+        }
       } else {
-        // Refund
-        const p1t = (await supabase.from('players').select('tokens').eq('id', m.player1).single()).data?.tokens ?? 0;
-        const p2t = (await supabase.from('players').select('tokens').eq('id', m.player2).single()).data?.tokens ?? 0;
-        await supabase.from('players').update({ tokens: p1t + m.p1Bet }).eq('id', m.player1);
-        await supabase.from('players').update({ tokens: p2t + m.p2Bet }).eq('id', m.player2);
+        // Disagreement: refund spectators
+        if (s.spectators?.length > 0) {
+          for (const spec of s.spectators) {
+            const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+            await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount }).eq('id', spec.id);
+          }
+        }
       }
       s.currentMatch = null; s.spectators = [];
     }
     await updateGame('fifa', s);
   };
 
-  const [betAmount, setBetAmount] = React.useState(5);
-  const [specBet, setSpecBet] = React.useState(2);
+  const [specBet, setSpecBet] = React.useState(5);
   const [specOn, setSpecOn] = React.useState(null);
 
   const placeSpecBet = async () => {
@@ -87,7 +103,7 @@ export default function Fifa() {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
     const s = data.state;
     if (!s.currentMatch || s.currentMatch.matchStarted) return;
-    s.currentMatch.pool += amt;
+    s.currentMatch.spectatorPool = (s.currentMatch.spectatorPool ?? 0) + amt;
     s.spectators = s.spectators ?? [];
     s.spectators.push({ id: player.id, name: player.name, betOn: specOn, amount: amt });
     await supabase.from('players').update({ tokens: player.tokens - amt }).eq('id', player.id);
@@ -97,6 +113,7 @@ export default function Fifa() {
   return (
     <div className="space-y-6 animate-in fade-in">
       <h1 className="text-3xl font-bold">🎮 FIFA 1v1</h1>
+      <p className="text-zinc-400 text-sm">Le gagnant remporte <span className="text-emerald-400 font-bold">+20 🪙</span> — tu ne risques rien !</p>
 
       {!current && (
         <div className="glass-card p-6 text-center">
@@ -121,26 +138,27 @@ export default function Fifa() {
           <div className="flex justify-between items-center">
             <div className="text-center flex-1">
               <div className="text-xl font-black text-blue-400">{current.p1Name}</div>
-              <div className="text-xs mt-1">{current.p1Ready ? <span className="text-emerald-400">✓ Prêt ({current.p1Bet}🪙)</span> : <span className="text-amber-400 animate-pulse">En attente…</span>}</div>
+              <div className="text-xs mt-1">{current.p1Ready ? <span className="text-emerald-400">✓ Prêt</span> : <span className="text-amber-400 animate-pulse">En attente…</span>}</div>
             </div>
             <div className="text-3xl font-black text-zinc-700">VS</div>
             <div className="text-center flex-1">
               <div className="text-xl font-black text-red-400">{current.p2Name}</div>
-              <div className="text-xs mt-1">{current.p2Ready ? <span className="text-emerald-400">✓ Prêt ({current.p2Bet}🪙)</span> : <span className="text-amber-400 animate-pulse">En attente…</span>}</div>
+              <div className="text-xs mt-1">{current.p2Ready ? <span className="text-emerald-400">✓ Prêt</span> : <span className="text-amber-400 animate-pulse">En attente…</span>}</div>
             </div>
           </div>
 
-          <div className="text-center bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
-            <span className="text-zinc-400 uppercase text-xs font-bold tracking-widest block mb-1">Cagnotte</span>
-            <span className="text-3xl font-mono text-rose-400">{current.pool} 🪙</span>
-          </div>
+          {current.spectatorPool > 0 && (
+            <div className="text-center bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
+              <span className="text-zinc-400 uppercase text-xs font-bold tracking-widest block mb-1">Mise des spectateurs</span>
+              <span className="text-2xl font-mono text-rose-400">{current.spectatorPool} 🪙</span>
+            </div>
+          )}
 
           {isPlaying && !current.matchStarted && !((isP1 && current.p1Ready) || (isP2 && current.p2Ready)) && (
-            <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
-              <h3 className="font-bold mb-3">Confirme ton match !</h3>
-              <input type="range" min="5" max={Math.min(30, Math.max(5, Math.floor(player.tokens/2)))} value={betAmount} onChange={e => setBetAmount(e.target.value)} className="w-full accent-rose-500 mb-2" />
-              <div className="text-center text-xl font-bold text-rose-400 mb-3">{betAmount} 🪙</div>
-              <button onClick={() => confirmMatch(betAmount)} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold text-lg touch-manipulation">Je suis là & je mise</button>
+            <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
+              <h3 className="font-bold mb-1">Confirme ta présence !</h3>
+              <p className="text-zinc-400 text-sm mb-4">Gagnant : <span className="text-emerald-400 font-bold">+20 🪙</span> — aucune mise requise.</p>
+              <button onClick={confirmReady} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold text-lg touch-manipulation">Je suis prêt ✊</button>
             </div>
           )}
 
@@ -151,7 +169,7 @@ export default function Fifa() {
           {isPlaying && current.matchStarted && (
             <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
               <h3 className="font-bold text-rose-400 animate-pulse mb-3">MATCH EN COURS ⚽</h3>
-              <p className="text-sm text-zinc-400 mb-5">Jouez votre match (4 min) puis déclarez le gagnant.</p>
+              <p className="text-sm text-zinc-400 mb-5">Jouez votre match puis déclarez le gagnant.</p>
               {!((isP1 && current.p1Vote) || (isP2 && current.p2Vote)) ? (
                 <div className="flex flex-col gap-3">
                   <button onClick={() => submitScore(current.player1)} className="flex-1 bg-blue-600/20 border border-blue-500 hover:bg-blue-600/40 py-3 rounded-xl text-blue-400 font-bold touch-manipulation">Victoire {current.p1Name}</button>
@@ -161,9 +179,11 @@ export default function Fifa() {
             </div>
           )}
 
+          {/* Spectator bet section */}
           {!isPlaying && !current.matchStarted && !amISpectatorBettor && (
             <div className="border-t border-zinc-800 pt-4">
-              <h3 className="font-bold text-sm text-zinc-400 mb-3">Parier sur ce match (2-15🪙)</h3>
+              <h3 className="font-bold text-sm text-zinc-400 mb-1">📣 Parier en spectateur (2-15🪙)</h3>
+              <p className="text-xs text-zinc-500 mb-3">Les gagnants se partagent la cagnotte des spectateurs.</p>
               <div className="flex flex-col gap-3">
                 <div className="flex gap-2">
                   <button onClick={() => setSpecOn(current.player1)} className={`flex-1 py-3 rounded-xl text-sm font-bold border touch-manipulation ${specOn === current.player1 ? 'bg-blue-600/30 border-blue-500 text-blue-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>{current.p1Name}</button>
@@ -176,6 +196,7 @@ export default function Fifa() {
               </div>
             </div>
           )}
+          {!isPlaying && amISpectatorBettor && <div className="text-center text-emerald-400 text-sm">✓ Pari enregistré — bonne chance !</div>}
           {!isPlaying && current.matchStarted && <div className="text-center text-rose-500 animate-pulse font-bold text-sm">Match en cours — paris fermés !</div>}
         </div>
       )}

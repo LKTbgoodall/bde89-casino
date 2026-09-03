@@ -1,7 +1,7 @@
 module.exports = (io, socket, store, broadcastLeaderboard) => {
   const initQState = () => {
     if (!store.games.quidanslasalle.answers) {
-      store.games.quidanslasalle = { status: 'waiting', question: null, pool: 0, answers: {} };
+      store.games.quidanslasalle = { status: 'waiting', question: null, answers: {} };
     }
   };
 
@@ -14,9 +14,8 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     if (!p || !p.isAdmin) return;
 
     store.games.quidanslasalle = {
-      status: 'betting',
+      status: 'answering',
       question,
-      pool: 0,
       answers: {}
     };
 
@@ -24,25 +23,18 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     if (callback) callback({ success: true });
   });
 
-  socket.on('q_submit', ({ bet, percent, isMe }, callback) => {
+  // Players submit their answer (no bet required)
+  socket.on('q_submit', ({ percent, isMe }, callback) => {
     const p = store.getPlayerBySocket(socket.id);
     initQState();
     const q = store.games.quidanslasalle;
 
-    if (!p || q.status !== 'betting') return;
+    if (!p || q.status !== 'answering') return;
     if (q.answers[p.id]) return callback({ success: false, error: 'Already submitted' });
-
-    if (bet < 2 || bet > 15 || bet > p.tokens * 0.5) {
-      return callback && callback({ success: false, error: 'Invalid bet amount' });
-    }
     if (percent < 0 || percent > 100) return callback({ success: false, error: 'Percent must be 0-100' });
 
-    p.tokens -= bet;
-    q.pool += bet;
-    q.answers[p.id] = { id: p.id, name: p.name, bet, percent, isMe };
+    q.answers[p.id] = { id: p.id, name: p.name, percent, isMe };
 
-    socket.emit('player_update', p);
-    broadcastLeaderboard();
     broadcastQ();
     if (callback) callback({ success: true });
   });
@@ -52,7 +44,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     initQState();
     const q = store.games.quidanslasalle;
 
-    if (!p || !p.isAdmin || q.status !== 'betting') return;
+    if (!p || !p.isAdmin || q.status !== 'answering') return;
 
     q.status = 'revealed';
 
@@ -62,7 +54,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
       const truePercent = Math.round((moiCount / answersList.length) * 100);
       q.truePercent = truePercent;
 
-      // Find closest
+      // Find closest estimations
       let minDiff = 100;
       let winners = [];
 
@@ -78,16 +70,13 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
 
       q.winners = winners.map(w => w.id);
 
-      // Distribute pool to winners
-      if (winners.length > 0) {
-        const share = Math.floor(q.pool / winners.length);
-        winners.forEach(w => {
-          if (store.players[w.id]) {
-            store.players[w.id].tokens += share;
-            io.to(store.players[w.id].socketId).emit('player_update', store.players[w.id]);
-          }
-        });
-      }
+      // Each winner gets +10 tokens fixed reward
+      winners.forEach(w => {
+        if (store.players[w.id]) {
+          store.players[w.id].tokens += 10;
+          io.to(store.players[w.id].socketId).emit('player_update', store.players[w.id]);
+        }
+      });
     } else {
       q.truePercent = 0;
       q.winners = [];
@@ -99,7 +88,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     
     setTimeout(() => {
       if (store.games.quidanslasalle.status === 'revealed') {
-        store.games.quidanslasalle = { status: 'waiting', question: null, pool: 0, answers: {} };
+        store.games.quidanslasalle = { status: 'waiting', question: null, answers: {} };
         broadcastQ();
       }
     }, 15000);

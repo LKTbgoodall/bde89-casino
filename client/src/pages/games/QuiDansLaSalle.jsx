@@ -4,23 +4,18 @@ import { supabase } from '../../lib/supabase';
 
 export default function QuiDansLaSalle() {
   const { player, games, updateGame } = useContext(AppContext);
-  const [betAmount, setBetAmount] = useState(2);
   const [percent, setPercent] = useState(50);
   const [isMe, setIsMe] = useState(null);
 
-  const q = games.quidanslasalle ?? { status: 'waiting', question: null, pool: 0, answers: {} };
+  const q = games.quidanslasalle ?? { status: 'waiting', question: null, answers: {} };
   const myAnswer = q.answers?.[player.id];
 
   const submitAnswer = async () => {
     if (isMe === null) return alert('Choisis si ça te correspond !');
-    const amt = parseInt(betAmount);
-    if (amt < 2 || amt > 15) return alert('Mise entre 2 et 15 🪙');
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'quidanslasalle').single();
     const s = data.state;
     s.answers = s.answers ?? {};
-    s.answers[player.id] = { playerId: player.id, name: player.name, isMe, percent: parseInt(percent), bet: amt };
-    s.pool = (s.pool ?? 0) + amt;
-    await supabase.from('players').update({ tokens: player.tokens - amt }).eq('id', player.id);
+    s.answers[player.id] = { id: player.id, name: player.name, isMe, percent: parseInt(percent) };
     await updateGame('quidanslasalle', s);
   };
 
@@ -35,13 +30,17 @@ export default function QuiDansLaSalle() {
         </div>
       )}
 
-      {q.status === 'betting' && (
+      {q.status === 'answering' && (
         <div className="glass-card p-6 border-t-4 border-teal-500">
           <div className="text-center mb-8">
             <span className="text-teal-400 font-bold uppercase tracking-widest text-xs mb-2 block">Question</span>
             <h2 className="text-2xl font-black text-white bg-zinc-800/80 px-4 py-3 rounded-xl border border-zinc-700 inline-block">
               {q.question}
             </h2>
+          </div>
+
+          <div className="text-center text-xs text-zinc-500 mb-4">
+            Meilleure estimation → <span className="text-emerald-400 font-bold">+10 🪙</span> — aucune mise requise !
           </div>
 
           {!myAnswer ? (
@@ -57,14 +56,6 @@ export default function QuiDansLaSalle() {
                 <h3 className="font-bold text-center mb-1">2. Estime le % de Oui dans la salle</h3>
                 <div className="text-center text-4xl font-black text-teal-400 mb-2">{percent}%</div>
                 <input type="range" min="0" max="100" value={percent} onChange={e => setPercent(e.target.value)} className="w-full accent-teal-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-center mb-3">3. Ta mise (2-15🪙)</h3>
-                <div className="flex gap-3 justify-center">
-                  {[2, 5, 10, 15].map(v => (
-                    <button key={v} onClick={() => setBetAmount(v)} className={`flex-1 py-4 rounded-xl border font-bold touch-manipulation ${betAmount === v ? 'bg-teal-600/30 border-teal-500 text-teal-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>{v}</button>
-                  ))}
-                </div>
               </div>
               <button onClick={submitAnswer} className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold py-5 rounded-xl shadow-lg shadow-teal-500/20 active:scale-[0.98] text-lg touch-manipulation">
                 Verrouiller ma réponse 🔒
@@ -100,8 +91,8 @@ export default function QuiDansLaSalle() {
 
           {q.winners?.length > 0 && (
             <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700">
-              <h3 className="font-bold text-teal-400 mb-2">🏆 Gagnants</h3>
-              <div className="flex flex-wrap gap-2 justify-center">
+              <h3 className="font-bold text-teal-400 mb-1">🏆 Gagnants <span className="text-emerald-400">+10 🪙</span></h3>
+              <div className="flex flex-wrap gap-2 justify-center mt-2">
                 {q.winners.map(wId => {
                   const ans = q.answers[wId];
                   return <span key={wId} className="bg-zinc-900 px-3 py-1 rounded-full text-sm border border-zinc-700">{ans?.name} ({ans?.percent}%)</span>;

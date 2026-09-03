@@ -14,13 +14,13 @@ class Store {
         left: [], // max 4
         right: [], // max 4
         status: 'waiting', // waiting, playing, voting
-        votes: { left: 0, right: 0 },
-        pool: 0
+        spectatorBets: [],
+        spectatorPool: 0
       },
       bluff1: { active: null, state: 'waiting' }, // simplified initial state
       bluff2: { active: null, state: 'waiting' },
       blindtest: { pool: 0, buzzerActive: false, firstBuzzer: null },
-      quidanslasalle: { question: null, pool: 0, answers: {}, status: 'waiting' }, // answers: { id: { percent, status, bet } }
+      quidanslasalle: { question: null, answers: {}, status: 'waiting' },
       imposteur1: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '' },
       imposteur2: { players: [], state: 'waiting', roles: {}, majorityWord: '', undercoverWord: '' }
     };

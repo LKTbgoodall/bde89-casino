@@ -67,7 +67,7 @@ export default function Undercover() {
       {u.state === 'waiting' && (
         <div className="glass-card p-6 text-center">
           <h2 className="text-xl font-bold mb-4">Rejoindre la partie</h2>
-          <p className="text-sm text-zinc-400 mb-6">Mise fixe : 10 🪙 par joueur (prélevée au lancement).</p>
+          <p className="text-sm text-zinc-400 mb-6">Gagnants : <span className="text-emerald-400 font-bold">+15 🪙 chacun</span> — tu ne risques rien !</p>
           {!amIPlaying ? (
             <button onClick={joinGame} className="bg-rose-600 hover:bg-rose-500 active:bg-rose-400 font-bold px-8 py-4 rounded-xl transition-all text-lg touch-manipulation w-full">
               S'inscrire à la table
@@ -91,11 +91,6 @@ export default function Undercover() {
 
       {u.state === 'playing' && (
         <div className="space-y-5">
-          <div className="flex justify-between items-center bg-zinc-800/80 px-4 py-3 rounded-xl border border-zinc-700">
-            <span className="text-sm text-zinc-400 uppercase font-bold tracking-wider">Cagnotte</span>
-            <span className="text-xl font-mono text-amber-400 font-bold">{u.pool} 🪙</span>
-          </div>
-
           {amIPlaying && (
             <div className="glass-card p-6 border-l-4 border-indigo-500 text-center">
               <span className="text-zinc-400 text-sm uppercase tracking-widest block mb-2">Ton mot secret</span>

@@ -35,11 +35,9 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
         player2: p2.id,
         p1Name: p1.name,
         p2Name: p2.name,
-        pool: 0,
+        spectatorPool: 0,
         p1Ready: false,
         p2Ready: false,
-        p1Bet: 0,
-        p2Bet: 0,
         p1Vote: null,
         p2Vote: null,
         matchStarted: false
@@ -65,33 +63,21 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     }
   };
 
-  socket.on('fifa_confirm', ({ bet }, callback) => {
+  // Players just confirm they are ready (no bet)
+  socket.on('fifa_ready', (callback) => {
     const p = store.getPlayerBySocket(socket.id);
     const fifa = store.games.fifa;
     if (!p || !fifa.currentMatch) return;
     
     const current = fifa.currentMatch;
-    
-    // Check bet limits
-    if (bet < 5 || bet > 30 || bet > p.tokens * 0.5) {
-      return callback && callback({ success: false, error: 'Invalid bet amount' });
-    }
 
     if (current.player1 === p.id) {
       current.p1Ready = true;
-      current.p1Bet = bet;
     } else if (current.player2 === p.id) {
       current.p2Ready = true;
-      current.p2Bet = bet;
     } else {
       return;
     }
-
-    // Deduct tokens
-    p.tokens -= bet;
-    current.pool += bet;
-    socket.emit('player_update', p);
-    broadcastLeaderboard();
 
     if (current.p1Ready && current.p2Ready) {
       current.matchStarted = true;
@@ -101,6 +87,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     if (callback) callback({ success: true });
   });
 
+  // Spectators can still bet on the winner
   socket.on('fifa_spectator_bet', ({ amount, betOnId }, callback) => {
     const p = store.getPlayerBySocket(socket.id);
     const fifa = store.games.fifa;
@@ -109,11 +96,11 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
     }
 
     if (amount < 2 || amount > 15 || amount > p.tokens * 0.5) {
-      return callback && callback({ success: false, error: 'Invalid bet amount' });
+      return callback && callback({ success: false, error: 'Invalid bet amount (2-15)' });
     }
 
     p.tokens -= amount;
-    fifa.currentMatch.pool += amount;
+    fifa.currentMatch.spectatorPool += amount;
     
     fifa.spectators.push({ id: p.id, name: p.name, betOn: betOnId, amount });
     
@@ -139,7 +126,7 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
         const realWinnerId = current.p1Vote;
         resolveFifaMatch(realWinnerId, fifa, current);
       } else {
-        // Disagreement - null score and refund all
+        // Disagreement - refund spectators and no winner bonus
         resolveFifaMatch(null, fifa, current);
         // Alert admin
         io.to('admins').emit('sos_alert', { 
@@ -155,56 +142,37 @@ module.exports = (io, socket, store, broadcastLeaderboard) => {
 
   const resolveFifaMatch = (winnerId, fifa, current) => {
     if (winnerId) {
-      // Winner takes all from the pool (players + spectator bets)
-      // Actually wait, if spectators bet on the winner, they should get a share?
-      // "Gagnant prend tout (joueurs + spectateurs gagnants)" -> Winner takes their share, spectator winners take theirs based on proportion.
-      
-      const totalPool = current.pool;
-      
-      // Calculate how much was bet on the winner
-      let betOnWinner = 0;
-      if (current.player1 === winnerId) betOnWinner += current.p1Bet;
-      if (current.player2 === winnerId) betOnWinner += current.p2Bet;
-      
-      const winningSpectators = fifa.spectators.filter(s => s.betOn === winnerId);
-      winningSpectators.forEach(s => betOnWinner += s.amount);
-      
-      if (betOnWinner === 0) {
-        // Impossible since player bet, but just in case
-      } else {
-        // Payout proportional
-        const p1Win = current.player1 === winnerId ? (current.p1Bet / betOnWinner) * totalPool : 0;
-        const p2Win = current.player2 === winnerId ? (current.p2Bet / betOnWinner) * totalPool : 0;
-        
-        if (p1Win > 0 && store.players[current.player1]) {
-           store.players[current.player1].tokens += Math.floor(p1Win);
-           io.to(store.players[current.player1].socketId).emit('player_update', store.players[current.player1]);
-        }
-        if (p2Win > 0 && store.players[current.player2]) {
-           store.players[current.player2].tokens += Math.floor(p2Win);
-           io.to(store.players[current.player2].socketId).emit('player_update', store.players[current.player2]);
-        }
+      // Winner gets +20 tokens fixed reward
+      if (store.players[winnerId]) {
+        store.players[winnerId].tokens += 20;
+        io.to(store.players[winnerId].socketId).emit('player_update', store.players[winnerId]);
+      }
 
-        winningSpectators.forEach(s => {
-          const sWin = (s.amount / betOnWinner) * totalPool;
-          if (store.players[s.id]) {
-            store.players[s.id].tokens += Math.floor(sWin);
-            io.to(store.players[s.id].socketId).emit('player_update', store.players[s.id]);
-          }
-        });
+      // Spectators who bet on winner get proportional share of spectator pool
+      const spectatorPool = current.spectatorPool;
+      if (spectatorPool > 0) {
+        const winningSpectators = fifa.spectators.filter(s => s.betOn === winnerId);
+        const totalWinningBets = winningSpectators.reduce((sum, s) => sum + s.amount, 0);
+
+        if (totalWinningBets > 0) {
+          winningSpectators.forEach(s => {
+            const sWin = Math.floor((s.amount / totalWinningBets) * spectatorPool);
+            if (store.players[s.id]) {
+              store.players[s.id].tokens += sWin;
+              io.to(store.players[s.id].socketId).emit('player_update', store.players[s.id]);
+            }
+          });
+        }
+        // Losers' bets stay gone (house keeps)
       }
     } else {
-      // Refund everyone
-      if (store.players[current.player1]) store.players[current.player1].tokens += current.p1Bet;
-      if (store.players[current.player2]) store.players[current.player2].tokens += current.p2Bet;
+      // Disagreement: refund spectators
       fifa.spectators.forEach(s => {
         if (store.players[s.id]) {
            store.players[s.id].tokens += s.amount;
            io.to(store.players[s.id].socketId).emit('player_update', store.players[s.id]);
         }
       });
-      if (store.players[current.player1]) io.to(store.players[current.player1].socketId).emit('player_update', store.players[current.player1]);
-      if (store.players[current.player2]) io.to(store.players[current.player2].socketId).emit('player_update', store.players[current.player2]);
     }
 
     broadcastLeaderboard();
