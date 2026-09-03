@@ -128,12 +128,6 @@ export default function Admin() {
     }, 5000);
   };
 
-  // --- BLIND TEST ---
-  const btStartRound = async () => {
-    const s = { state: 'joining', players: [] };
-    await updateGame('blindtest', s);
-    setBtSelectedPlayer(null);
-  };
   const btStartPlaying = async () => {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
     const s = { ...data.state, state: 'playing' };
@@ -142,7 +136,7 @@ export default function Admin() {
   };
   const btResolve = async (result) => {
     const winnerId = btSelectedPlayer;
-    if (!winnerId && result !== 'refund' && result !== 'wrong') return alert('Sélectionne un joueur !');
+    if (!winnerId && result !== 'refund') return alert('Sélectionne un joueur !');
     
     if (result === 'full') {
       const winnerTokens = (await supabase.from('players').select('tokens').eq('id', winnerId).single()).data?.tokens ?? 0;
@@ -152,8 +146,9 @@ export default function Admin() {
       await supabase.from('players').update({ tokens: winnerTokens + 5 }).eq('id', winnerId);
     } 
     
-    // reset round
-    await updateGame('blindtest', { state: 'waiting', players: [] });
+    // reset round but keep players in queue
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
+    await updateGame('blindtest', { state: 'waiting', players: data.state.players || [] });
     setBtSelectedPlayer(null);
   };
 
@@ -347,14 +342,10 @@ export default function Admin() {
           <span className={badgeClass}>{games.blindtest?.state} | {games.blindtest?.players?.length ?? 0} joueurs</span>
         </div>
         <div className="space-y-2">
-          {games.blindtest?.state === 'waiting' && (
-            <button onClick={btStartRound} className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 py-2 rounded text-sm font-bold touch-manipulation">1. Lancer les Inscriptions</button>
-          )}
-          
-          {games.blindtest?.state === 'joining' && (
+          {(games.blindtest?.state === 'waiting' || games.blindtest?.state === 'joining') && (
             <>
               <p className="text-xs text-zinc-400">Inscrits: {games.blindtest.players ? games.blindtest.players.map(p => p.name).join(', ') : ''}</p>
-              <button onClick={btStartPlaying} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-sm font-bold touch-manipulation">2. Fermer les inscriptions & Jouer</button>
+              <button onClick={btStartPlaying} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-sm font-bold touch-manipulation">▶ Lancer le son & Jouer</button>
             </>
           )}
 
@@ -378,7 +369,6 @@ export default function Admin() {
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => btResolve('full')} className="bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">✅ Titre+Artiste (+10🪙)</button>
                     <button onClick={() => btResolve('half')} className="bg-emerald-700/60 border border-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">🎵 Titre OU Artiste (+5🪙)</button>
-                    <button onClick={() => btResolve('wrong')} className="bg-rose-600 py-2 rounded text-xs font-bold touch-manipulation">❌ Faux (Rouvrir)</button>
                   </div>
                 </div>
               )}

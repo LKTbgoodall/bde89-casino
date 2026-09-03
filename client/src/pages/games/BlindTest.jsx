@@ -72,36 +72,35 @@ export default function BlindTest() {
         )}
       </div>
 
-      {(bt.state === 'waiting' || !bt.state) && (
-        <div className="glass p-8 text-center text-zinc-400 rounded-xl">
-          <div className="text-4xl mb-3">🎵</div>
-          <p>En attente du prochain round…</p>
-        </div>
-      )}
-
-      {bt.state === 'joining' && (
-        <div className="glass-card p-6 border-t-4 border-fuchsia-500">
-          <h3 className="text-center font-bold mb-5">Un nouveau round va commencer !</h3>
-          {!hasJoined ? (
+      <div className="mt-8">
+        {!hasJoined ? (
+          <div className="glass-card p-6 border-t-4 border-fuchsia-500">
+            <h3 className="text-center font-bold mb-5">Prêt à deviner la musique ?</h3>
             <button onClick={joinRound} className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 py-5 rounded-xl font-bold text-xl touch-manipulation">
               Je participe ! ✋
             </button>
-          ) : (
-            <div className="text-center bg-fuchsia-900/20 border border-fuchsia-500/30 p-5 rounded-xl">
-              <p className="font-bold text-fuchsia-400">Tu es inscrit pour ce round !</p>
-              <p className="text-sm text-zinc-400 mt-2 animate-pulse">Attends le lancement par l'admin…</p>
-            </div>
-          )}
-        </div>
-      )}
+            <p className="text-xs text-zinc-500 mt-3 text-center">Tu peux rejoindre à tout moment, même pendant un son !</p>
+          </div>
+        ) : (
+          <>
+            {(bt.state === 'waiting' || bt.state === 'joining' || !bt.state) && (
+              <div className="glass-card p-6 text-center border border-zinc-700/50">
+                <p className="font-bold text-fuchsia-400 mb-2">Tu es inscrit !</p>
+                <p className="text-zinc-400">Prépare-toi pour le prochain son.</p>
+                <p className="text-xs text-zinc-500 mt-2 animate-pulse">En attente de l'administrateur...</p>
+              </div>
+            )}
 
-      {bt.state === 'playing' && (
-        <div className="glass-card p-8 text-center border border-fuchsia-500/50">
-          <h2 className="text-zinc-400 text-sm font-bold uppercase tracking-widest mb-4">Écoute bien !</h2>
-          <div className="text-6xl mb-4 animate-bounce">🎧</div>
-          <p className="text-lg text-fuchsia-300 font-bold">Lève la main si tu as la réponse !</p>
-        </div>
-      )}
+            {bt.state === 'playing' && (
+              <div className="glass-card p-8 text-center border border-fuchsia-500/50">
+                <h2 className="text-zinc-400 text-sm font-bold uppercase tracking-widest mb-4">Écoute bien !</h2>
+                <div className="text-6xl mb-4 animate-bounce">🎧</div>
+                <p className="text-lg text-fuchsia-300 font-bold">Lève la main si tu as la réponse !</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
