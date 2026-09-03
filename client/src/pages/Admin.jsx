@@ -305,7 +305,7 @@ export default function Admin() {
                 </div>
                 {g?.state === 'waiting' && (
                   <div className="flex flex-col gap-2 mt-2">
-                    <p className="text-xs text-zinc-400">File d'attente ({g.queue?.length ?? 0}) : {g.queue?.map(q=>q.name).join(', ')}</p>
+                    <p className="text-xs text-zinc-400">File d'attente ({g.queue?.length ?? 0}) : {g.queue ? g.queue.map(q=>q.name).join(', ') : ''}</p>
                     <button 
                       onClick={() => bluffSetRandomActive(tid)} 
                       disabled={!g.queue || g.queue.length === 0}
@@ -341,7 +341,7 @@ export default function Admin() {
           
           {games.blindtest?.state === 'joining' && (
             <>
-              <p className="text-xs text-zinc-400">Inscrits: {games.blindtest.players?.map(p => p.name).join(', ')}</p>
+              <p className="text-xs text-zinc-400">Inscrits: {games.blindtest.players ? games.blindtest.players.map(p => p.name).join(', ') : ''}</p>
               <button onClick={btStartPlaying} className="w-full bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-sm font-bold touch-manipulation">2. Fermer les inscriptions & Jouer</button>
             </>
           )}
