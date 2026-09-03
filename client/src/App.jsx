@@ -145,8 +145,7 @@ function AppProvider({ children }) {
   const updateGame = async (gameId, newState) => {
     setGames(prev => ({ ...prev, [gameId]: newState }));
     const { error } = await supabase.from('game_states')
-      .update({ state: newState, updated_at: new Date().toISOString() })
-      .eq('game_id', gameId);
+      .upsert({ game_id: gameId, state: newState, updated_at: new Date().toISOString() });
     if (error) console.error('updateGame error:', gameId, error);
   };
 

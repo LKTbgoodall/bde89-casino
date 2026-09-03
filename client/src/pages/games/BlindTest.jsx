@@ -9,8 +9,8 @@ export default function BlindTest() {
   const hasJoined = bt.players?.find(p => p.id === player.id);
 
   const joinRound = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').single();
-    const s = data.state || { state: 'waiting', players: [] };
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'blindtest').maybeSingle();
+    const s = data?.state || { state: 'waiting', players: [] };
     if (s.players?.find(p => p.id === player.id)) return;
     
     s.players = s.players ?? [];
