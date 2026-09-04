@@ -45,28 +45,34 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
       alive.forEach(p => { counts[p.votedFor] = (counts[p.votedFor] ?? 0) + 1; });
       const maxVotes = Math.max(...Object.values(counts));
       const eliminated = Object.keys(counts).find(id => counts[id] === maxVotes);
-      s.players = s.players.map(p => p.id === eliminated ? { ...p, eliminated: true } : { ...p, votedFor: null });
+      s.players = s.players.map(p => p.id === eliminated ? { ...p, eliminated: true, votedFor: null } : { ...p, votedFor: null });
       // Check win condition
-      const remaining = s.players.filter(p => !p.eliminated);
-      const undercoverLeft = remaining.filter(p => p.role === 'undercover').length;
-      const mrWhiteLeft = remaining.filter(p => p.role === 'mrwhite').length;
-      if (undercoverLeft === 0 && mrWhiteLeft === 0) { 
-        s.state = 'finished'; s.winnerRole = 'civil'; 
-        const civils = s.players.filter(p => p.role === 'civil');
-        for (const c of civils) {
-          const { data: wd } = await supabase.from('players').select('tokens').eq('id', c.id).single();
-          await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 10 }).eq('id', c.id);
+      const eliminatedPlayer = s.players.find(p => p.id === eliminated);
+      if (eliminatedPlayer?.role === 'mrwhite') {
+        s.state = 'mrwhite_guess'; s.mrWhiteId = eliminated;
+      } else {
+        const remaining = s.players.filter(p => !p.eliminated);
+        const undercoverLeft = remaining.filter(p => p.role === 'undercover').length;
+        const mrWhiteLeft = remaining.filter(p => p.role === 'mrwhite').length;
+        const civilLeft = remaining.filter(p => p.role === 'civil').length;
+        
+        if (undercoverLeft === 0 && mrWhiteLeft === 0) { 
+          s.state = 'finished'; s.winnerRole = 'civil'; 
+          const civils = s.players.filter(p => p.role === 'civil');
+          for (const c of civils) {
+            const { data: wd } = await supabase.from('players').select('tokens').eq('id', c.id).single();
+            await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 10 }).eq('id', c.id);
+          }
+        }
+        else if (undercoverLeft >= civilLeft) { 
+          s.state = 'finished'; s.winnerRole = 'undercover'; 
+          const imposters = s.players.filter(p => p.role === 'undercover');
+          for (const imp of imposters) {
+            const { data: wd } = await supabase.from('players').select('tokens').eq('id', imp.id).single();
+            await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 25 }).eq('id', imp.id);
+          }
         }
       }
-      else if (undercoverLeft >= remaining.filter(p => p.role === 'civil').length) { 
-        s.state = 'finished'; s.winnerRole = 'undercover'; 
-        const imposters = s.players.filter(p => p.role === 'undercover');
-        for (const imp of imposters) {
-          const { data: wd } = await supabase.from('players').select('tokens').eq('id', imp.id).single();
-          await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 25 }).eq('id', imp.id);
-        }
-      }
-      else if (s.players.find(p => p.id === eliminated && p.role === 'mrwhite')) { s.state = 'mrwhite_guess'; s.mrWhiteId = eliminated; }
     }
     await updateGame(tableId, s);
   };
