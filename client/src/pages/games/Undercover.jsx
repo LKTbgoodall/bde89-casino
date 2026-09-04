@@ -50,8 +50,22 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
       const remaining = s.players.filter(p => !p.eliminated);
       const undercoverLeft = remaining.filter(p => p.role === 'undercover').length;
       const mrWhiteLeft = remaining.filter(p => p.role === 'mrwhite').length;
-      if (undercoverLeft === 0 && mrWhiteLeft === 0) { s.state = 'finished'; s.winnerRole = 'civil'; }
-      else if (undercoverLeft >= remaining.filter(p => p.role === 'civil').length) { s.state = 'finished'; s.winnerRole = 'undercover'; }
+      if (undercoverLeft === 0 && mrWhiteLeft === 0) { 
+        s.state = 'finished'; s.winnerRole = 'civil'; 
+        const civils = s.players.filter(p => p.role === 'civil');
+        for (const c of civils) {
+          const { data: wd } = await supabase.from('players').select('tokens').eq('id', c.id).single();
+          await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 10 }).eq('id', c.id);
+        }
+      }
+      else if (undercoverLeft >= remaining.filter(p => p.role === 'civil').length) { 
+        s.state = 'finished'; s.winnerRole = 'undercover'; 
+        const imposters = s.players.filter(p => p.role === 'undercover');
+        for (const imp of imposters) {
+          const { data: wd } = await supabase.from('players').select('tokens').eq('id', imp.id).single();
+          await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 25 }).eq('id', imp.id);
+        }
+      }
       else if (s.players.find(p => p.id === eliminated && p.role === 'mrwhite')) { s.state = 'mrwhite_guess'; s.mrWhiteId = eliminated; }
     }
     await updateGame(tableId, s);
@@ -69,7 +83,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
       {u.state === 'waiting' && (
         <div className="glass-card p-6 text-center">
           <h2 className="text-xl font-bold mb-4">Rejoindre la partie</h2>
-          <p className="text-sm text-zinc-400 mb-6">Gagnants : <span className="text-emerald-400 font-bold">+15 🪙 chacun</span> — tu ne risques rien !</p>
+          <p className="text-sm text-zinc-400 mb-6">Gagnants : <span className="text-emerald-400 font-bold">Civils +10🪙 | Imposteurs +25🪙 | Mr White +50🪙</span></p>
           {!amIPlaying ? (
             <button onClick={joinGame} className="bg-rose-600 hover:bg-rose-500 active:bg-rose-400 font-bold px-8 py-4 rounded-xl transition-all text-lg touch-manipulation w-full">
               S'inscrire à la table

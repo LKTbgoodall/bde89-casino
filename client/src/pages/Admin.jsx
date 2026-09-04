@@ -178,15 +178,9 @@ export default function Admin() {
       const word = role === 'undercover' ? uWords.und : role === 'mrwhite' ? '' : uWords.maj;
       return { ...p, role, word, eliminated: false, votedFor: null };
     });
-    pool = s.players.length * 10;
-    for (const p of s.players) {
-      const { data: wd } = await supabase.from('players').select('tokens').eq('id', p.id).single();
-      await supabase.from('players').update({ tokens: Math.max(0, (wd?.tokens ?? 0) - 10) }).eq('id', p.id);
-    }
     s.state = 'playing';
     s.majorityWord = uWords.maj;
     s.undercoverWord = uWords.und;
-    s.pool = pool;
     await updateGame(tid, s);
   };
 
@@ -195,20 +189,17 @@ export default function Admin() {
     const s = data.state;
     if (isCorrect) {
       s.state = 'finished'; s.winnerRole = 'mrwhite';
+      const w = s.players.find(p => p.role === 'mrwhite');
+      if (w) {
+        const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
+        await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 50 }).eq('id', w.id);
+      }
     } else {
       s.state = 'finished'; s.winnerRole = 'civil';
-    }
-    if (s.pool > 0) {
-      const winners = s.players.filter(p => {
-        if (isCorrect) return p.role === 'mrwhite';
-        return p.role === 'civil';
-      });
-      if (winners.length > 0) {
-        const share = Math.floor(s.pool / winners.length);
-        for (const w of winners) {
-          const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
-          await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + share }).eq('id', w.id);
-        }
+      const civils = s.players.filter(p => p.role === 'civil');
+      for (const c of civils) {
+        const { data: wd } = await supabase.from('players').select('tokens').eq('id', c.id).single();
+        await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 10 }).eq('id', c.id);
       }
     }
     await updateGame(tid, s);
@@ -357,7 +348,7 @@ export default function Admin() {
                       <label className="flex items-center gap-1"><input type="checkbox" checked={uWords.mrWhite} onChange={e => setUWords({ ...uWords, mrWhite: e.target.checked })} /> Mr White?</label>
                     </div>
                     <button onClick={() => uStart(tid)} className="w-full bg-white text-zinc-900 py-2 rounded text-xs font-bold mt-2 touch-manipulation">
-                      ▶ Démarrer (Prélever 10🪙/joueur)
+                      ▶ Démarrer
                     </button>
                   </div>
                 )}
@@ -371,7 +362,6 @@ export default function Admin() {
                         </li>
                       ))}
                     </ul>
-                    <p className="text-zinc-400">Cagnotte: <strong className="text-amber-400">{g.pool}🪙</strong></p>
                   </div>
                 )}
                 {g?.state === 'mrwhite_guess' && (
