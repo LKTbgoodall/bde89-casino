@@ -56,6 +56,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
 
   // The admin will handle score submission
 
+  return (
     <div className="space-y-6 animate-in fade-in">
       <h1 className="text-3xl font-bold text-center">🎮 FIFA 2v2</h1>
       <p className="text-zinc-400 text-sm text-center">Les gagnants remportent <span className="text-emerald-400 font-bold">+20 🪙 chacun</span> — tu ne risques rien !</p>
