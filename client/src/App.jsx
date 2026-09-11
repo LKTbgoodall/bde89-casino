@@ -11,6 +11,8 @@ import BabyFoot from './pages/games/BabyFoot';
 import Bluff from './pages/games/Bluff';
 import BlindTest from './pages/games/BlindTest';
 import Undercover from './pages/games/Undercover';
+import Fifa2v2 from './pages/games/Fifa2v2';
+import MarioKart from './pages/games/MarioKart';
 
 export const AppContext = createContext();
 
@@ -154,8 +156,11 @@ function AppProvider({ children }) {
     if (!pid) return null;
 
     const g = games;
-    if (g.fifa?.queue?.find(p => p.id === pid)) return 'FIFA';
-    if (g.fifa?.currentMatch?.player1 === pid || g.fifa?.currentMatch?.player2 === pid) return 'FIFA';
+    if (g.fifa?.queue?.find(p => p.id === pid)) return 'FIFA 1v1';
+    if (g.fifa?.currentMatch?.player1 === pid || g.fifa?.currentMatch?.player2 === pid) return 'FIFA 1v1';
+    if (g.fifa2v2?.left?.find(p => p.id === pid) || g.fifa2v2?.right?.find(p => p.id === pid)) return 'FIFA 2v2';
+    if (g.mariokart?.queue?.find(p => p.id === pid)) return 'Mario Kart';
+    if (g.mariokart?.currentMatch?.players?.find(p => p.id === pid)) return 'Mario Kart';
     if (g.babyfoot?.left?.find(p => p.id === pid) || g.babyfoot?.right?.find(p => p.id === pid)) return 'Babyfoot';
     if (g.bluff1?.queue?.find(p => p.id === pid)) return 'Bluff (Table 1)';
     if (g.bluff2?.queue?.find(p => p.id === pid)) return 'Bluff (Table 2)';
@@ -169,17 +174,17 @@ function AppProvider({ children }) {
     const playerId = pid ?? player?.id;
     if (!playerId) return;
 
-    for (const gId of ['fifa', 'babyfoot', 'imposteur1', 'imposteur2', 'bluff1', 'bluff2']) {
+    for (const gId of ['fifa', 'fifa2v2', 'mariokart', 'babyfoot', 'imposteur1', 'imposteur2', 'bluff1', 'bluff2']) {
       const { data } = await supabase.from('game_states').select('state').eq('game_id', gId).single();
       if (!data) continue;
       let s = { ...data.state };
       let changed = false;
 
-      if (gId === 'fifa' || gId === 'bluff1' || gId === 'bluff2') {
+      if (gId === 'fifa' || gId === 'mariokart' || gId === 'bluff1' || gId === 'bluff2') {
         const before = s.queue?.length || 0;
         if (s.queue) s.queue = s.queue.filter(p => p.id !== playerId);
         changed = (s.queue?.length || 0) !== before;
-      } else if (gId === 'babyfoot') {
+      } else if (gId === 'babyfoot' || gId === 'fifa2v2') {
         if (s.status === 'waiting') {
           const before = s.left.length + s.right.length;
           s.left = s.left.filter(p => p.id !== playerId);
@@ -219,6 +224,8 @@ export default function App() {
           <Route path="/hub" element={<RequireAuth><Hub /></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
           <Route path="/games/fifa" element={<RequireAuth><Fifa /></RequireAuth>} />
+          <Route path="/games/fifa2v2" element={<RequireAuth><Fifa2v2 /></RequireAuth>} />
+          <Route path="/games/mariokart" element={<RequireAuth><MarioKart /></RequireAuth>} />
           <Route path="/games/babyfoot" element={<RequireAuth><BabyFoot /></RequireAuth>} />
           <Route path="/games/bluff/:id" element={<RequireAuth><Bluff /></RequireAuth>} />
           <Route path="/games/blindtest" element={<RequireAuth><BlindTest /></RequireAuth>} />

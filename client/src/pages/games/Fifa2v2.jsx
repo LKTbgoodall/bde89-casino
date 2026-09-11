@@ -2,9 +2,9 @@ import React, { useContext } from 'react';
 import { AppContext } from '../../App';
 import { supabase } from '../../lib/supabase';
 
-export default function BabyFoot() {
+export default function Fifa2v2() {
   const { player, games, updateGame, leaveAllQueues, isAlreadyInGame } = useContext(AppContext);
-  const bf = games.babyfoot ?? { left: [], right: [], status: 'waiting', spectatorPool: 0, spectatorBets: [] };
+  const bf = games.fifa2v2 ?? { left: [], right: [], status: 'waiting', spectatorPool: 0, spectatorBets: [] };
 
   const myLeft = bf.left?.find(p => p.id === player.id);
   const myRight = bf.right?.find(p => p.id === player.id);
@@ -16,22 +16,22 @@ export default function BabyFoot() {
     const alreadyIn = isAlreadyInGame();
     if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
 Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa2v2').single();
     const s = data.state;
     if (s.status !== 'waiting') return alert('Match déjà en cours');
     if (s.left.find(p => p.id === player.id) || s.right.find(p => p.id === player.id)) return;
     const team = s[side];
-    if (team.length >= 4) return alert('Équipe complète !');
+    if (team.length >= 2) return alert('Équipe complète !');
     team.push({ id: player.id, name: player.name, vote: null });
-    await updateGame('babyfoot', s);
+    await updateGame('fifa2v2', s);
   };
 
   const leaveTeam = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa2v2').single();
     const s = data.state;
     s.left = s.left.filter(p => p.id !== player.id);
     s.right = s.right.filter(p => p.id !== player.id);
-    await updateGame('babyfoot', s);
+    await updateGame('fifa2v2', s);
   };
 
   const [specBet, setSpecBet] = React.useState(5);
@@ -51,15 +51,14 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
     s.spectatorBets.push({ id: player.id, name: player.name, betOn: specOn, amount: amt });
     s.spectatorPool = (s.spectatorPool ?? 0) + amt;
     await supabase.from('players').update({ tokens: player.tokens - amt }).eq('id', player.id);
-    await updateGame('babyfoot', s);
+    await updateGame('fifa2v2', s);
   };
 
   // The admin will handle score submission
 
-  return (
     <div className="space-y-6 animate-in fade-in">
-      <h1 className="text-3xl font-bold text-center">⚽ Baby Foot</h1>
-      <p className="text-zinc-400 text-sm text-center">Les gagnants remportent <span className="text-emerald-400 font-bold">+15 🪙 chacun</span> — tu ne risques rien !</p>
+      <h1 className="text-3xl font-bold text-center">🎮 FIFA 2v2</h1>
+      <p className="text-zinc-400 text-sm text-center">Les gagnants remportent <span className="text-emerald-400 font-bold">+20 🪙 chacun</span> — tu ne risques rien !</p>
 
       {bf.status === 'playing' && isPlaying && (
         <div className="bg-emerald-500/10 border border-emerald-500/50 p-5 rounded-xl text-center">
@@ -105,7 +104,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[['left','Bleue','blue'], ['right','Rouge','red']].map(([side, label, color]) => (
           <div key={side} className={`glass-card p-4 border-t-4 border-t-${color}-500`}>
-            <h2 className={`font-bold text-${color}-400 mb-4 text-center`}>Équipe {label} ({bf[side].length}/4)</h2>
+            <h2 className={`font-bold text-${color}-400 mb-4 text-center`}>Équipe {label} ({bf[side].length}/2)</h2>
             <div className="space-y-2 min-h-[100px]">
               {bf[side].map(p => (
                 <div key={p.id} className="bg-zinc-800/50 px-3 py-2 rounded flex justify-between items-center text-sm">
@@ -119,7 +118,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
               ))}
               {bf[side].length === 0 && <p className="text-zinc-500 text-sm text-center italic mt-4">Place libre</p>}
             </div>
-            {bf.status === 'waiting' && !isPlaying && bf[side].length < 4 && (
+            {bf.status === 'waiting' && !isPlaying && bf[side].length < 2 && (
               <button onClick={() => joinTeam(side)} className={`w-full mt-4 bg-${color}-600/20 hover:bg-${color}-600/40 active:bg-${color}-600/60 text-${color}-300 py-4 rounded-xl border border-${color}-500/50 transition-colors font-bold touch-manipulation`}>
                 Rejoindre l'équipe {label}
               </button>

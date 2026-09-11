@@ -4,6 +4,8 @@ import { AppContext } from '../App';
 
 const TABLES = [
   { id: 'fifa',          name: '🎮 FIFA 1v1',             path: '/games/fifa',                  location: 'Espace Gaming',    desc: 'Tournoi 1v1 sur console', rules: "Affronte un autre joueur sur FIFA. Si tu gagnes, tu remportes la mise." },
+  { id: 'fifa2v2',       name: '🎮 FIFA 2v2',             path: '/games/fifa2v2',               location: 'Espace Gaming',    desc: 'Tournoi par équipes', rules: "Match de FIFA en 2 contre 2. Pariez sur l'équipe Bleue ou Rouge." },
+  { id: 'mariokart',     name: '🏎️ Mario Kart',           path: '/games/mariokart',             location: 'Espace Gaming',    desc: 'Course à 4 joueurs', rules: "Chacun pour soi ! Les points sont répartis selon le classement. Les spectateurs peuvent parier sur le vainqueur." },
   { id: 'babyfoot',      name: '⚽ Baby Foot',             path: '/games/babyfoot',              location: 'Foyer',            desc: 'Matchs en équipe (1v1 à 4v4)', rules: "Des matchs se déroulent en équipe (jusqu'à 4v4). Tu peux parier sur l'équipe de gauche ou de droite." },
   { id: 'bluff1',        name: '🃏 1V1B — Table 1',        path: '/games/bluff/bluff1',          location: 'Salle A1',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
   { id: 'bluff2',        name: '🃏 1V1B — Table 2',        path: '/games/bluff/bluff2',          location: 'Salle A2',         desc: 'Devine la vraie anecdote', rules: "Un joueur monte sur scène et raconte une anecdote. À toi de miser pour deviner si c'est la VÉRITÉ ou un gros BLUFF !" },
@@ -58,6 +60,8 @@ export default function Hub() {
     const g = games[id];
     if (!g) return 0;
     if (id === 'fifa') return (g.queue?.length ?? 0) + (g.currentMatch ? 2 : 0);
+    if (id === 'fifa2v2') return (g.left?.length ?? 0) + (g.right?.length ?? 0);
+    if (id === 'mariokart') return (g.queue?.length ?? 0) + (g.currentMatch ? 4 : 0);
     if (id === 'babyfoot') return (g.left?.length ?? 0) + (g.right?.length ?? 0);
     if (id.startsWith('imposteur')) return g.players?.length ?? 0;
     if (id.startsWith('bluff')) return g.bets?.length ?? 0;

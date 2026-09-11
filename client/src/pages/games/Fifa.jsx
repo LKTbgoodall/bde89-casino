@@ -62,41 +62,10 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
   const confirmReady = async () => {
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
     const s = data.state;
-    if (!s.currentMatch) return;
     if (isP1) s.currentMatch.p1Ready = true;
-    else if (isP2) s.currentMatch.p2Ready = true;
-    if (s.currentMatch.p1Ready && s.currentMatch.p2Ready) s.currentMatch.matchStarted = true;
-    await updateGame('fifa', s);
-  };
-
-  const submitScore = async (winnerId) => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
-    const s = data.state; const m = s.currentMatch;
-    if (!m) return;
-    if (isP1) m.p1Vote = winnerId;
-    if (isP2) m.p2Vote = winnerId;
-    if (m.p1Vote && m.p2Vote) {
-      if (m.p1Vote === m.p2Vote) {
-        // Pay winner +20 tokens
-        const winner = m.p1Vote;
-        const { data: wd } = await supabase.from('players').select('tokens').eq('id', winner).single();
-        await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 20 }).eq('id', winner);
-
-        // Resolve spectator bets — winning spectators get x2 their bet
-        if (s.spectators?.length > 0) {
-          const winningSpecs = s.spectators.filter(s => s.betOn === winner);
-          for (const spec of winningSpecs) {
-            const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
-            await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 2 }).eq('id', spec.id);
-          }
-        }
-        s.currentMatch = null; s.spectators = [];
-      } else {
-        // Disagreement: reset votes and show conflict message
-        m.p1Vote = null;
-        m.p2Vote = null;
-        m.conflict = true;
-      }
+    if (isP2) s.currentMatch.p2Ready = true;
+    if (s.currentMatch.p1Ready && s.currentMatch.p2Ready) {
+      s.currentMatch.matchStarted = true;
     }
     await updateGame('fifa', s);
   };
@@ -186,14 +155,7 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
           {isPlaying && current.matchStarted && (
             <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
               <h3 className="font-bold text-rose-400 animate-pulse mb-3">MATCH EN COURS ⚽</h3>
-              {current.conflict && <p className="text-sm font-bold text-red-500 mb-3 animate-pulse">⚠️ Le résultat n'est pas le même ! Mettez-vous d'accord pour continuer et avoir les points.</p>}
-              <p className="text-sm text-zinc-400 mb-5">Jouez votre match puis déclarez le gagnant.</p>
-              {!((isP1 && current.p1Vote) || (isP2 && current.p2Vote)) ? (
-                <div className="flex flex-col gap-3">
-                  <button onClick={() => submitScore(current.player1)} className="flex-1 bg-blue-600/20 border border-blue-500 hover:bg-blue-600/40 py-3 rounded-xl text-blue-400 font-bold touch-manipulation">Victoire {current.p1Name}</button>
-                  <button onClick={() => submitScore(current.player2)} className="flex-1 bg-red-600/20 border border-red-500 hover:bg-red-600/40 py-3 rounded-xl text-red-400 font-bold touch-manipulation">Victoire {current.p2Name}</button>
-                </div>
-              ) : <div className="text-amber-400">Vote enregistré, en attente de l'adversaire…</div>}
+              <p className="text-sm text-zinc-400">Jouez votre match !<br/>Le staff se chargera d'enregistrer le résultat à la fin.</p>
             </div>
           )}
 

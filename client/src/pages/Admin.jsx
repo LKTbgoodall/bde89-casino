@@ -7,6 +7,7 @@ export default function Admin() {
   const [qQuestion, setQQuestion] = useState('');
   const [uWords, setUWords] = useState({ maj: '', und: '', count: 1, mrWhite: false });
   const [btSelectedPlayer, setBtSelectedPlayer] = useState(null);
+  const [mkRanks, setMkRanks] = useState([]);
 
   if (!player?.is_admin) {
     return <div className="text-center text-rose-500 mt-20 text-xl font-bold">Accès refusé</div>;
@@ -16,6 +17,8 @@ export default function Admin() {
   const resetGame = async (gameId) => {
     const defaults = {
       fifa: { queue: [], currentMatch: null, spectators: [] },
+      fifa2v2: { left: [], right: [], status: 'waiting', votes: { left: 0, right: 0 }, pool: 0 },
+      mariokart: { queue: [], currentMatch: null, spectators: [] },
       babyfoot: { left: [], right: [], status: 'waiting', votes: { left: 0, right: 0 }, pool: 0 },
       bluff1: { active: null, state: 'waiting', choices: [], queue: [], recentActives: [] },
       bluff2: { active: null, state: 'waiting', choices: [], queue: [], recentActives: [] },
@@ -28,7 +31,6 @@ export default function Admin() {
   };
 
   const fifaAdminSubmitScore = async (winnerId) => {
-    if (!window.confirm("Forcer la victoire pour ce joueur ?")) return;
     const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa').single();
     const s = data.state;
     if (!s.currentMatch) return;
@@ -47,16 +49,15 @@ export default function Admin() {
     await updateGame('fifa', s);
   };
 
-  const bfAdminSubmitScore = async (winnerSide) => {
-    if (!window.confirm("Forcer la victoire pour cette équipe ?")) return;
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
+  const teamGameAdminSubmitScore = async (gameId, winnerSide, reward) => {
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', gameId).single();
     const s = data.state;
     if (s.status !== 'playing') return;
 
     const winners = s[winnerSide];
     for (const w of winners) {
       const { data: wd } = await supabase.from('players').select('tokens').eq('id', w.id).single();
-      await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + 15 }).eq('id', w.id);
+      await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + reward }).eq('id', w.id);
       
       if (s.spectatorBets?.length > 0) {
         const winningSpecs = s.spectatorBets.filter(b => b.betOn === winnerSide);
@@ -67,7 +68,69 @@ export default function Admin() {
       }
     }
     s.left = []; s.right = []; s.status = 'waiting'; s.spectatorBets = []; s.spectatorPool = 0; s.conflict = false;
-    await updateGame('babyfoot', s);
+    await updateGame(gameId, s);
+  };
+  
+  const teamGameStartMatch = async (gameId, minPlayers) => {
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', gameId).single();
+    const s = data.state;
+    if (s.left.length < minPlayers || s.right.length < minPlayers) return alert('Pas assez de joueurs !');
+    s.status = 'betting';
+    await updateGame(gameId, s);
+  };
+  
+  const teamGameStartPlaying = async (gameId) => {
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', gameId).single();
+    const s = data.state;
+    s.status = 'playing';
+    await updateGame(gameId, s);
+  };
+
+  const mkStartMatch = async () => {
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'mariokart').single();
+    const s = data.state;
+    if (!s.queue || s.queue.length < 4) return alert('Pas assez de joueurs dans la file ! (4 requis)');
+    const players = s.queue.slice(0, 4).map(p => ({ ...p, ready: false }));
+    s.queue = s.queue.slice(4);
+    s.currentMatch = { players, matchStarted: false, spectatorPool: 0 };
+    s.spectators = [];
+    await updateGame('mariokart', s);
+  };
+
+  const mkStartPlaying = async () => {
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'mariokart').single();
+    const s = data.state;
+    if (s.currentMatch) s.currentMatch.matchStarted = true;
+    await updateGame('mariokart', s);
+  };
+
+  const mkAdminSubmitScore = async () => {
+    if (mkRanks.length !== 4) return alert('Sélectionnez les 4 joueurs dans l\'ordre !');
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'mariokart').single();
+    const s = data.state;
+    if (!s.currentMatch) return;
+
+    const rewards = [20, 15, 10, 5];
+    for (let i = 0; i < 4; i++) {
+      const pid = mkRanks[i];
+      const { data: wd } = await supabase.from('players').select('tokens').eq('id', pid).single();
+      await supabase.from('players').update({ tokens: (wd?.tokens ?? 0) + rewards[i] }).eq('id', pid);
+    }
+
+    // Spectator rewards for 1st place
+    const firstPlaceId = mkRanks[0];
+    if (s.spectators?.length > 0) {
+      const winningSpecs = s.spectators.filter(sp => sp.betOn === firstPlaceId);
+      for (const spec of winningSpecs) {
+        const { data: sd } = await supabase.from('players').select('tokens').eq('id', spec.id).single();
+        await supabase.from('players').update({ tokens: (sd?.tokens ?? 0) + spec.amount * 4 }).eq('id', spec.id); // *4 because 4 choices
+      }
+    }
+
+    s.currentMatch = null;
+    s.spectators = [];
+    setMkRanks([]);
+    await updateGame('mariokart', s);
   };
   // --- BLUFF ---
   const bluffSetRandomActive = async (tid) => {
@@ -143,20 +206,7 @@ export default function Admin() {
     setBtSelectedPlayer(null);
   };
 
-  // --- BABYFOOT ---
-  const bfStartMatch = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
-    const s = data.state;
-    if (s.left.length < 1 || s.right.length < 1) return alert('Pas assez de joueurs !');
-    s.status = 'betting';
-    await updateGame('babyfoot', s);
-  };
-  const bfStartPlaying = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'babyfoot').single();
-    const s = data.state;
-    s.status = 'playing';
-    await updateGame('babyfoot', s);
-  };
+
 
   // --- UNDERCOVER ---
   const uStart = async (tid) => {
@@ -231,6 +281,66 @@ export default function Admin() {
         <button onClick={() => resetGame('fifa')} className="w-full bg-rose-900/30 border border-rose-500/30 text-rose-400 text-xs py-2 rounded hover:bg-rose-900/50 touch-manipulation">⚠️ Reset</button>
       </div>
 
+      {/* MARIO KART */}
+      <div className={`${cardClass} border-t-4 border-yellow-500`}>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="font-bold text-yellow-400">🏎️ Mario Kart</h2>
+          <span className={badgeClass}>File: {games.mariokart?.queue?.length ?? 0} | {games.mariokart?.currentMatch ? 'Course' : 'Libre'}</span>
+        </div>
+        {games.mariokart?.currentMatch && (
+          <div className="mb-3 p-3 bg-zinc-800 rounded border border-zinc-700">
+            <p className="text-xs text-zinc-400 mb-2 font-bold uppercase">Arbitrer la course (Sélectionnez dans l'ordre du 1er au 4e) :</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {games.mariokart.currentMatch.players.map(p => {
+                const rankIdx = mkRanks.indexOf(p.id);
+                return (
+                  <button 
+                    key={p.id} 
+                    onClick={() => {
+                      if (rankIdx !== -1) setMkRanks(mkRanks.filter(id => id !== p.id));
+                      else if (mkRanks.length < 4) setMkRanks([...mkRanks, p.id]);
+                    }}
+                    className={`px-3 py-2 rounded text-xs font-bold border touch-manipulation ${rankIdx !== -1 ? 'bg-yellow-600 border-yellow-500 text-white' : 'bg-zinc-700 border-zinc-600 text-zinc-300'}`}
+                  >
+                    {p.name} {rankIdx !== -1 && `(${rankIdx + 1}e)`}
+                  </button>
+                )
+              })}
+            </div>
+            {mkRanks.length === 4 && (
+              <button onClick={mkAdminSubmitScore} className="w-full bg-yellow-600 hover:bg-yellow-500 py-2 rounded text-xs font-bold touch-manipulation text-white">Valider le classement</button>
+            )}
+          </div>
+        )}
+        <div className="flex gap-2">
+          {!games.mariokart?.currentMatch && <button onClick={mkStartMatch} className="flex-1 bg-yellow-700 hover:bg-yellow-600 py-2 rounded text-xs font-bold touch-manipulation text-white">Créer Course (4 joueurs)</button>}
+          {games.mariokart?.currentMatch && !games.mariokart.currentMatch.matchStarted && <button onClick={mkStartPlaying} className="flex-1 bg-yellow-600 hover:bg-yellow-500 py-2 rounded text-xs font-bold touch-manipulation text-white">Fermer Paris & Démarrer</button>}
+          <button onClick={() => { resetGame('mariokart'); setMkRanks([]); }} className="bg-rose-900/30 border border-rose-500/30 text-rose-400 text-xs px-3 py-2 rounded hover:bg-rose-900/50 touch-manipulation">Reset</button>
+        </div>
+      </div>
+
+      {/* FIFA 2V2 */}
+      <div className={`${cardClass} border-t-4 border-cyan-500`}>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="font-bold text-cyan-400">🎮 FIFA 2v2</h2>
+          <span className={badgeClass}>{games.fifa2v2?.status} | {(games.fifa2v2?.left?.length ?? 0) + (games.fifa2v2?.right?.length ?? 0)} joueurs</span>
+        </div>
+        {games.fifa2v2?.status === 'playing' && (
+          <div className="mb-3 p-3 bg-zinc-800 rounded border border-zinc-700">
+            <p className="text-xs text-zinc-400 mb-2 font-bold uppercase">Arbitrer le match :</p>
+            <div className="flex gap-2">
+              <button onClick={() => teamGameAdminSubmitScore('fifa2v2', 'left', 20)} className="flex-1 bg-blue-600/50 hover:bg-blue-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Bleue</button>
+              <button onClick={() => teamGameAdminSubmitScore('fifa2v2', 'right', 20)} className="flex-1 bg-red-600/50 hover:bg-red-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Rouge</button>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-2">
+          {games.fifa2v2?.status === 'waiting' && <button onClick={() => teamGameStartMatch('fifa2v2', 2)} className="flex-1 bg-cyan-700 hover:bg-cyan-600 py-2 rounded text-xs font-bold touch-manipulation">Lancer les mises</button>}
+          {games.fifa2v2?.status === 'betting' && <button onClick={() => teamGameStartPlaying('fifa2v2')} className="flex-1 bg-cyan-600 hover:bg-cyan-500 py-2 rounded text-xs font-bold touch-manipulation">Démarrer le match</button>}
+          <button onClick={() => resetGame('fifa2v2')} className="bg-rose-900/30 border border-rose-500/30 text-rose-400 text-xs px-3 py-2 rounded hover:bg-rose-900/50 touch-manipulation">Reset</button>
+        </div>
+      </div>
+
       {/* BABYFOOT */}
       <div className={`${cardClass} border-t-4 border-emerald-500`}>
         <div className="flex justify-between items-center mb-3">
@@ -241,14 +351,14 @@ export default function Admin() {
           <div className="mb-3 p-3 bg-zinc-800 rounded border border-zinc-700">
             <p className="text-xs text-zinc-400 mb-2 font-bold uppercase">Arbitrer le match :</p>
             <div className="flex gap-2">
-              <button onClick={() => bfAdminSubmitScore('left')} className="flex-1 bg-blue-600/50 hover:bg-blue-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Bleue</button>
-              <button onClick={() => bfAdminSubmitScore('right')} className="flex-1 bg-red-600/50 hover:bg-red-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Rouge</button>
+              <button onClick={() => teamGameAdminSubmitScore('babyfoot', 'left', 15)} className="flex-1 bg-blue-600/50 hover:bg-blue-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Bleue</button>
+              <button onClick={() => teamGameAdminSubmitScore('babyfoot', 'right', 15)} className="flex-1 bg-red-600/50 hover:bg-red-500 py-2 rounded text-xs font-bold touch-manipulation">Victoire Rouge</button>
             </div>
           </div>
         )}
         <div className="flex gap-2">
-          {games.babyfoot?.status === 'waiting' && <button onClick={bfStartMatch} className="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">Lancer les mises</button>}
-          {games.babyfoot?.status === 'betting' && <button onClick={bfStartPlaying} className="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">Démarrer le match</button>}
+          {games.babyfoot?.status === 'waiting' && <button onClick={() => teamGameStartMatch('babyfoot', 1)} className="flex-1 bg-emerald-700 hover:bg-emerald-600 py-2 rounded text-xs font-bold touch-manipulation">Lancer les mises</button>}
+          {games.babyfoot?.status === 'betting' && <button onClick={() => teamGameStartPlaying('babyfoot')} className="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded text-xs font-bold touch-manipulation">Démarrer le match</button>}
           <button onClick={() => resetGame('babyfoot')} className="bg-rose-900/30 border border-rose-500/30 text-rose-400 text-xs px-3 py-2 rounded hover:bg-rose-900/50 touch-manipulation">Reset</button>
         </div>
       </div>
@@ -364,13 +474,20 @@ export default function Admin() {
                     </ul>
                   </div>
                 )}
-                {g?.state === 'mrwhite_guess' && (
+                {g?.state === 'mrwhite_judging' && (
                   <div className="p-2 border border-amber-500 bg-amber-500/10 rounded mt-2">
-                    <p className="text-xs text-amber-400 font-bold mb-2">Arbitrer devinette Mr White</p>
+                    <p className="text-xs text-amber-400 font-bold mb-2">
+                      Mr White propose : <span className="text-white uppercase">"{g.mrWhiteGuessWord}"</span>
+                    </p>
                     <div className="flex gap-2">
-                      <button onClick={() => uJudgeMrWhite(tid, true)} className="flex-1 bg-emerald-600 text-xs py-2 rounded touch-manipulation">✅ Correct</button>
+                      <button onClick={() => uJudgeMrWhite(tid, true)} className="flex-1 bg-emerald-600 text-xs py-2 rounded touch-manipulation">✅ C'est le mot</button>
                       <button onClick={() => uJudgeMrWhite(tid, false)} className="flex-1 bg-rose-600 text-xs py-2 rounded touch-manipulation">❌ Faux</button>
                     </div>
+                  </div>
+                )}
+                {g?.state === 'mrwhite_guess' && (
+                  <div className="text-xs text-amber-500 font-bold mt-2 animate-pulse">
+                    En attente de la réponse de Mr White...
                   </div>
                 )}
                 <button onClick={() => resetGame(tid)} className="text-rose-500 text-[10px] uppercase font-bold underline mt-2 block touch-manipulation">Force Reset</button>

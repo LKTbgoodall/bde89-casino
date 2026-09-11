@@ -78,8 +78,12 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
   };
 
   const submitGuess = async () => {
-    // Admin judges — just clear state here
-    alert('Attends que l\'admin valide ta réponse !');
+    if (!mrWhiteGuess) return alert('Saisis un mot !');
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', tableId).single();
+    const s = data.state;
+    s.state = 'mrwhite_judging';
+    s.mrWhiteGuessWord = mrWhiteGuess;
+    await updateGame(tableId, s);
   };
 
   return (
@@ -146,17 +150,25 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
         </div>
       )}
 
-      {u.state === 'mrwhite_guess' && (
+      {(u.state === 'mrwhite_guess' || u.state === 'mrwhite_judging') && (
         <div className="glass-card p-6 text-center border-2 border-white/20">
           <h2 className="text-2xl font-black text-white mb-2">Alerte Mr White !</h2>
           <p className="text-zinc-300 mb-6">Mr White a une chance de deviner le mot des civils.</p>
           {amIPlaying?.id === u.mrWhiteId ? (
             <div className="space-y-4">
-              <input type="text" value={mrWhiteGuess} onChange={e => setMrWhiteGuess(e.target.value)} placeholder="Le mot des civils est…" className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-center text-xl font-bold" />
-              <button onClick={submitGuess} className="w-full bg-white text-zinc-900 font-black py-4 rounded-xl hover:bg-zinc-200 touch-manipulation">Tenter ma chance</button>
+              {u.state === 'mrwhite_guess' ? (
+                <>
+                  <input type="text" value={mrWhiteGuess} onChange={e => setMrWhiteGuess(e.target.value)} placeholder="Le mot des civils est…" className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-center text-xl font-bold" />
+                  <button onClick={submitGuess} className="w-full bg-white text-zinc-900 font-black py-4 rounded-xl hover:bg-zinc-200 touch-manipulation">Tenter ma chance</button>
+                </>
+              ) : (
+                <div className="text-emerald-400 font-bold">Proposition envoyée à l'admin ({u.mrWhiteGuessWord})</div>
+              )}
             </div>
           ) : (
-            <div className="animate-pulse text-amber-400 font-bold">En attente de la tentative de Mr White…</div>
+            <div className="animate-pulse text-amber-400 font-bold">
+              {u.state === 'mrwhite_guess' ? 'En attente de la tentative de Mr White…' : `Mr White a proposé : ${u.mrWhiteGuessWord} (Attente admin)`}
+            </div>
           )}
         </div>
       )}
