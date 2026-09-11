@@ -16,8 +16,10 @@ export default function Fifa2v2() {
     const alreadyIn = isAlreadyInGame();
     if (alreadyIn) return alert(`Tu es déjà inscrit à : ${alreadyIn} !
 Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa2v2').single();
-    const s = data.state;
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa2v2').maybeSingle();
+    const s = data?.state || { status: 'waiting', left: [], right: [] };
+    s.left = s.left || [];
+    s.right = s.right || [];
     if (s.status !== 'waiting') return alert('Match déjà en cours');
     if (s.left.find(p => p.id === player.id) || s.right.find(p => p.id === player.id)) return;
     const team = s[side];
@@ -27,10 +29,10 @@ Quitte ce jeu d'abord avant d'en rejoindre un autre.`);
   };
 
   const leaveTeam = async () => {
-    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa2v2').single();
-    const s = data.state;
-    s.left = s.left.filter(p => p.id !== player.id);
-    s.right = s.right.filter(p => p.id !== player.id);
+    const { data } = await supabase.from('game_states').select('state').eq('game_id', 'fifa2v2').maybeSingle();
+    const s = data?.state || { status: 'waiting', left: [], right: [] };
+    s.left = (s.left || []).filter(p => p.id !== player.id);
+    s.right = (s.right || []).filter(p => p.id !== player.id);
     await updateGame('fifa2v2', s);
   };
 
